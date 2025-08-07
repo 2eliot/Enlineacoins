@@ -1,0 +1,490 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+/* Mensajes flash en página principal */
+.flash-messages-main {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.flash-message-main {
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.flash-message-main.flash-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.flash-message-main.flash-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* ==== HEADER ==== */
+.header {
+  background-color: #222;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+.hamburger {
+  position: relative;
+  cursor: pointer;
+}
+.hamburger .icon {
+  width: 32px;
+  height: 32px;
+  stroke: #fff;
+  fill: none;
+}
+
+/* Menú de juegos desplegable */
+.menu-juegos {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  background: #fff;
+  color: #333;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  display: none;
+  width: 180px;
+}
+.menu-juegos.visible {
+  display: block;
+}
+.menu-juegos .menu-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+.menu-juegos ul {
+  list-style: none;
+  padding: 0;
+}
+.menu-juegos li {
+  margin-bottom: 0.5rem;
+}
+.menu-juegos a {
+  color: #333;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.menu-juegos a:hover {
+  color: #000;
+  font-weight: bold;
+}
+
+/* Íconos del header a la derecha */
+.icon-container {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  position: relative;
+}
+.icon {
+  width: 32px;
+  height: 32px;
+  fill: #ffffff;
+  transition: transform 0.2s ease;
+}
+.icon:hover {
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+.icon.active {
+  fill: #667eea;
+}
+
+/* Caja de usuario */
+.user-icon {
+  position: relative;
+}
+.user-box {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background-color: #fff;
+  color: #333;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  display: none;
+  width: max-content;
+  min-width: 220px;
+}
+.user-box.visible {
+  display: block;
+}
+.user-box p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+.user-box .admin-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: #667eea;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.user-box .admin-btn:hover {
+  background: #5a6fd8;
+}
+
+.user-box .logout-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: #333;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.user-box .logout-btn:hover {
+  background: #444;
+}
+
+/* ==== PANEL SALDO ==== */
+.user-panel {
+  background-color: #f8f9fa;
+  text-align: center;
+  font-size: 1.1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+/* ==== HISTORIAL ==== */
+.transactions {
+  padding: 2rem;
+  text-align: center;
+}
+.transaction-title {
+  background: linear-gradient(90deg, #333, #000);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* Contenedor de transacciones simplificado */
+.transaction-container {
+  max-width: 500px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Tarjeta de transacción simple */
+.transaction-card-simple {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  border: 1px solid #e9ecef;
+  padding: 0.75rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.transaction-card-simple:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Fila principal de la transacción */
+.transaction-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.transaction-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.control-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-num {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.status-simple {
+  font-size: 0.9rem;
+}
+
+.package-cost {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.package {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.cost {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #dc3545;
+}
+
+/* PIN de la transacción */
+.transaction-pin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f8f9fa;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.pin-code-simple {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #212529;
+  letter-spacing: 0.5px;
+}
+
+.copy-btn-simple {
+  background-color: #667eea;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  min-width: 28px;
+  height: 24px;
+}
+
+.copy-btn-simple:hover {
+  background-color: #5a6fd8;
+  transform: scale(1.05);
+}
+
+.copy-btn-simple:active {
+  transform: scale(0.95);
+}
+
+/* Footer de la transacción */
+.transaction-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f1f3f4;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.date-simple {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.user-simple {
+  font-weight: 500;
+}
+
+/* Estado vacío */
+.no-transactions {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  fill: #adb5bd;
+}
+
+.empty-state p {
+  color: #6c757d;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Paginación */
+.pagination {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.page {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #aaa;
+  background-color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #333;
+}
+.page:hover {
+  background-color: #eee;
+}
+.page.active {
+  background-color: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .transactions {
+    padding: 1rem;
+  }
+  
+  .transaction-title {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .transaction-container {
+    margin: 0 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .transaction-card-simple {
+    padding: 0.5rem;
+  }
+  
+  .transaction-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+  }
+  
+  .transaction-main {
+    gap: 0.2rem;
+  }
+  
+  .control-status {
+    gap: 0.4rem;
+  }
+  
+  .control-num {
+    font-size: 0.8rem;
+  }
+  
+  .package-cost {
+    gap: 0.5rem;
+  }
+  
+  .package {
+    font-size: 0.85rem;
+  }
+  
+  .cost {
+    font-size: 0.85rem;
+  }
+  
+  .transaction-pin {
+    padding: 0.3rem 0.5rem;
+    align-self: flex-end;
+  }
+  
+  .pin-code-simple {
+    font-size: 0.75rem;
+  }
+  
+  .copy-btn-simple {
+    padding: 0.2rem 0.3rem;
+    font-size: 0.7rem;
+    min-width: 24px;
+    height: 20px;
+  }
+  
+  .transaction-footer {
+    padding-top: 0.4rem;
+    font-size: 0.75rem;
+  }
+  
+  .date-simple,
+  .user-simple {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .transaction-container {
+    margin: 0 0.25rem;
+  }
+  
+  .transaction-card-simple {
+    padding: 0.4rem;
+  }
+  
+  .control-num {
+    font-size: 0.75rem;
+  }
+  
+  .package,
+  .cost {
+    font-size: 0.8rem;
+  }
+  
+  .pin-code-simple {
+    font-size: 0.7rem;
+  }
+  
+  .copy-btn-simple {
+    min-width: 20px;
+    height: 18px;
+    font-size: 0.65rem;
+  }
+  
+  .transaction-footer {
+    font-size: 0.7rem;
+  }
+}

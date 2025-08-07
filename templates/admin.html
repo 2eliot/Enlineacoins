@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Administrador</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Mensajes flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages-main">
+        {% for category, message in messages %}
+          <div class="flash-message-main flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Header de administrador -->
+  <header class="admin-header">
+    <div class="admin-title">
+      <h1>🛠️ Panel de Administrador</h1>
+    </div>
+    <div class="admin-info">
+      <span>{{ session.get('nombre', 'Admin') }} {{ session.get('apellido', '') }}</span>
+      <a href="/logout" class="logout-btn">Cerrar Sesión</a>
+    </div>
+  </header>
+
+  <!-- Panel principal -->
+  <main class="admin-main">
+    <div class="stats-section">
+      <div class="stat-card">
+        <h3>Total de Usuarios</h3>
+        <div class="stat-number">{{ users|length }}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Saldo Total del Sistema</h3>
+        <div class="stat-number">${{ "%.2f"|format(users|sum(attribute='saldo')) }}</div>
+      </div>
+    </div>
+
+    <!-- Lista de usuarios -->
+    <section class="users-section">
+      <h2>Gestión de Usuarios</h2>
+      
+      {% if users %}
+        <div class="users-table-container">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th>Saldo</th>
+                <th>Fecha Registro</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.nombre }}</td>
+                <td>{{ user.apellido }}</td>
+                <td>{{ user.correo }}</td>
+                <td>{{ user.telefono }}</td>
+                <td class="balance">${{ "%.2f"|format(user.saldo) }}</td>
+                <td>{{ user.fecha_registro[:10] }}</td>
+                <td class="actions">
+                  <!-- Agregar crédito -->
+                  <form method="POST" action="/admin/add_credit" class="inline-form">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="number" name="amount" placeholder="Monto" step="0.01" min="0.01" required class="small-input">
+                    <button type="submit" class="btn btn-success">+ Crédito</button>
+                  </form>
+                  
+                  <!-- Modificar saldo -->
+                  <form method="POST" action="/admin/update_balance" class="inline-form">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="number" name="new_balance" placeholder="Nuevo saldo" step="0.01" min="0" required class="small-input">
+                    <button type="submit" class="btn btn-warning">Modificar</button>
+                  </form>
+                  
+                  <!-- Eliminar usuario -->
+                  <form method="POST" action="/admin/delete_user" class="inline-form" onsubmit="return confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="no-users">
+          <p>No hay usuarios registrados en el sistema.</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Gestión de Pines Free Fire -->
+    <section class="pins-section">
+      <h2>📌 Gestión de Pines Free Fire</h2>
+      
+      <div class="pin-management">
+        <h3>Agregar Pin</h3>
+        <form method="POST" action="/admin/add_pin" class="admin-form">
+          <div class="form-group">
+            <label for="monto_id">Tipo de Paquete:</label>
+            <select id="monto_id" name="monto_id" required>
+              <option value="">Seleccione paquete</option>
+              <option value="1">110 💎 / $0.66</option>
+              <option value="2">341 💎 / $2.25</option>
+              <option value="3">572 💎 / $3.66</option>
+              <option value="4">1.166 💎 / $7.10</option>
+              <option value="5">2.376 💎 / $14.44</option>
+              <option value="6">6.138 💎 / $33.10</option>
+              <option value="7">Tarjeta básica / $0.50</option>
+              <option value="8">Tarjeta semanal / $1.55</option>
+              <option value="9">Tarjeta mensual / $7.10</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pin_codigo">Código del Pin:</label>
+            <input type="text" id="pin_codigo" name="pin_codigo" placeholder="Ingrese el código del pin" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Agregar Pin</button>
+        </form>
+      </div>
+
+      <div class="pin-stock">
+        <h3>Stock de Pines</h3>
+        <div class="stock-grid">
+          <div class="stock-item">
+            <span>110 💎 / $0.66</span>
+            <span class="stock-count">{{ pin_stock.get(1, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>341 💎 / $2.25</span>
+            <span class="stock-count">{{ pin_stock.get(2, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>572 💎 / $3.66</span>
+            <span class="stock-count">{{ pin_stock.get(3, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>1.166 💎 / $7.10</span>
+            <span class="stock-count">{{ pin_stock.get(4, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>2.376 💎 / $14.44</span>
+            <span class="stock-count">{{ pin_stock.get(5, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>6.138 💎 / $33.10</span>
+            <span class="stock-count">{{ pin_stock.get(6, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>Tarjeta básica / $0.50</span>
+            <span class="stock-count">{{ pin_stock.get(7, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>Tarjeta semanal / $1.55</span>
+            <span class="stock-count">{{ pin_stock.get(8, 0) }}</span>
+          </div>
+          <div class="stock-item">
+            <span>Tarjeta mensual / $7.10</span>
+            <span class="stock-count">{{ pin_stock.get(9, 0) }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Auto-ocultar mensajes flash después de 2 segundos
+    setTimeout(function() {
+      const flashMessages = document.querySelector('.flash-messages-main');
+      if (flashMessages) {
+        flashMessages.style.opacity = '0';
+        setTimeout(() => flashMessages.remove(), 300);
+      }
+    }, 2000);
+  </script>
+</body>
+</html>

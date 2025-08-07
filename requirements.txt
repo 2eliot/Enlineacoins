@@ -1,0 +1,11 @@
+# Dependencias principales
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Utilidades (opcional)
+python-dotenv==1.0.0
+
+# Para producción (opcional)
+gunicorn==21.2.0
+
+# Nota: sqlite3, secrets, hashlib y os son módulos integrados de Python
