@@ -178,3 +178,7 @@ settings.local.py
 !static/images/*.jpg
 !static/images/*.jpeg
 !static/images/*.gif
+
+# Carpetas innecesarias
+Inefablepines/
+.continue/
