@@ -61,7 +61,7 @@
 
   <!-- Panel del usuario -->
   <section class="user-panel">
-    <p>Mi ID <span style="color: #28a745; font-weight: 600;">{{ user_id }}</span> &nbsp; | &nbsp; Saldo <span style="color: #28a745; font-weight: 600;">${{ balance }}</span></p>
+    <p>Mi ID <span style="color: #28a745; font-weight: 600;">{{ user_id }}</span> &nbsp; | &nbsp; Saldo <span style="color: #28a745; font-weight: 600;">${{ "%.2f"|format(balance) }}</span></p>
   </section>
 
   <!-- Historial -->
