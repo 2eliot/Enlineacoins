@@ -875,13 +875,14 @@ def freefire_latam():
     # Obtener precios dinámicos
     prices = get_package_info_with_prices()
     
-    # Verificar si hay una compra exitosa para mostrar
+    # Verificar si hay una compra exitosa para mostrar (solo una vez)
     compra_exitosa = False
     compra_data = {}
     
+    # Solo mostrar compra exitosa si viene del redirect POST y hay datos en sesión
     if request.args.get('compra') == 'exitosa' and 'compra_exitosa' in session:
         compra_exitosa = True
-        compra_data = session.pop('compra_exitosa')  # Remover después de usar
+        compra_data = session.pop('compra_exitosa')  # Remover después de usar para evitar mostrar de nuevo
     
     return render_template('freefire_latam.html', 
                          user_id=session.get('id', '00000'),
