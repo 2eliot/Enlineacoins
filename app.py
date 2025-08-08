@@ -875,11 +875,15 @@ def validar_freefire_latam():
     # Obtener stock actualizado
     stock = get_pin_stock()
     
+    # Obtener precios dinámicos para el template
+    prices = get_package_info_with_prices()
+    
     # Mostrar los datos de la compra en la misma página
     return render_template('freefire_latam.html', 
                          user_id=session.get('id', '00000'),
                          balance=session.get('saldo', 0),
                          stock=stock,
+                         prices=prices,
                          compra_exitosa=True,
                          paquete_nombre=paquete_nombre,
                          monto_compra=precio,
