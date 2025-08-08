@@ -781,10 +781,14 @@ def freefire_latam():
     # Obtener stock de pines
     stock = get_pin_stock()
     
+    # Obtener precios dinámicos
+    prices = get_package_info_with_prices()
+    
     return render_template('freefire_latam.html', 
                          user_id=session.get('id', '00000'),
                          balance=session.get('saldo', 0),
-                         stock=stock)
+                         stock=stock,
+                         prices=prices)
 
 @app.route('/validar/freefire_latam', methods=['POST'])
 def validar_freefire_latam():
@@ -811,21 +815,18 @@ def validar_freefire_latam():
         flash('No hay stock disponible para este paquete', 'error')
         return redirect('/juego/freefire_latam')
     
-    # Definir precios por monto_id
-    precios = {
-        1: 0.66, 2: 2.25, 3: 3.66, 4: 7.10, 5: 14.44,
-        6: 33.10, 7: 0.50, 8: 1.55, 9: 7.10
-    }
+    # Obtener precio dinámico de la base de datos
+    precio = get_price_by_id(monto_id)
     
-    # Nombres de paquetes
-    paquetes = {
-        1: "110 💎 / $0.66", 2: "341 💎 / $2.25", 3: "572 💎 / $3.66",
-        4: "1.166 💎 / $7.10", 5: "2.376 💎 / $14.44", 6: "6.138 💎 / $33.10",
-        7: "Tarjeta básica / $0.50", 8: "Tarjeta semanal / $1.55", 9: "Tarjeta mensual / $7.10"
-    }
+    # Obtener información del paquete
+    packages_info = get_package_info_with_prices()
+    package_info = packages_info.get(monto_id, {})
     
-    precio = precios.get(monto_id, 0)
-    paquete_nombre = paquetes.get(monto_id, "Paquete")
+    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} / ${precio:.2f}"
+    
+    if precio == 0:
+        flash('Paquete no encontrado o inactivo', 'error')
+        return redirect('/juego/freefire_latam')
     saldo_actual = session.get('saldo', 0)
     
     # Verificar si tiene saldo suficiente

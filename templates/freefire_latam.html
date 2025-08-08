@@ -64,15 +64,15 @@
       <label for="monto">Selecciona tu paquete:</label>
       <select id="monto" name="monto" class="form-control" style="background-color: #AAF0F4;" required>
         <option value="">Seleccione paquete</option>
-        <option id="monto_1" value="1">110 💎 / $0.66 {% if stock.get(1, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_2" value="2">341 💎 / $2.25 {% if stock.get(2, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_3" value="3">572 💎 / $3.66 {% if stock.get(3, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_4" value="4">1.166 💎 / $7.10 {% if stock.get(4, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_5" value="5">2.376 💎 / $14.44 {% if stock.get(5, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_6" value="6">6.138 💎 / $33.10 {% if stock.get(6, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_7" value="7">Tarjeta básica / $0.50 {% if stock.get(7, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_8" value="8">Tarjeta semanal / $1.55 {% if stock.get(8, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
-        <option id="monto_9" value="9">Tarjeta mensual / $7.10 {% if stock.get(9, 0) > 0 %}(✅){% else %}(❌){% endif %}</option>
+        {% for package_id in range(1, 10) %}
+          {% set package = prices.get(package_id, {}) %}
+          {% if package %}
+            <option id="monto_{{ package_id }}" value="{{ package_id }}">
+              {{ package.nombre }} / ${{ "%.2f"|format(package.precio) }} 
+              {% if stock.get(package_id, 0) > 0 %}(✅){% else %}(❌){% endif %}
+            </option>
+          {% endif %}
+        {% endfor %}
       </select>
 
       <button type="submit">Validar compra</button>
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="entrega-info">
-        <p>✅ Los diamantes serán entregados a tu correo en menos de 10 minutos.</p>
+        <p>✅ Compra exitosa.</p>
       </div>
     </div>
     {% else %}

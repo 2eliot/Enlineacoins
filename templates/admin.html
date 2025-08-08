@@ -119,15 +119,9 @@
                 <label for="monto_id">Tipo de Paquete:</label>
                 <select id="monto_id" name="monto_id" required>
                   <option value="">Seleccione paquete</option>
-                  <option value="1">110 💎 / $0.66</option>
-                  <option value="2">341 💎 / $2.25</option>
-                  <option value="3">572 💎 / $3.66</option>
-                  <option value="4">1.166 💎 / $7.10</option>
-                  <option value="5">2.376 💎 / $14.44</option>
-                  <option value="6">6.138 💎 / $33.10</option>
-                  <option value="7">Tarjeta básica / $0.50</option>
-                  <option value="8">Tarjeta semanal / $1.55</option>
-                  <option value="9">Tarjeta mensual / $7.10</option>
+                  {% for price in prices %}
+                    <option value="{{ price.id }}">{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="form-group">
@@ -147,15 +141,9 @@
                 <label for="batch_monto_id">Tipo de Paquete:</label>
                 <select id="batch_monto_id" name="batch_monto_id" required>
                   <option value="">Seleccione paquete</option>
-                  <option value="1">110 💎 / $0.66</option>
-                  <option value="2">341 💎 / $2.25</option>
-                  <option value="3">572 💎 / $3.66</option>
-                  <option value="4">1.166 💎 / $7.10</option>
-                  <option value="5">2.376 💎 / $14.44</option>
-                  <option value="6">6.138 💎 / $33.10</option>
-                  <option value="7">Tarjeta básica / $0.50</option>
-                  <option value="8">Tarjeta semanal / $1.55</option>
-                  <option value="9">Tarjeta mensual / $7.10</option>
+                  {% for price in prices %}
+                    <option value="{{ price.id }}">{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="form-group">
@@ -172,42 +160,12 @@
       <div class="pin-stock">
         <h3>Stock de Pines</h3>
         <div class="stock-grid">
+          {% for price in prices %}
           <div class="stock-item">
-            <span>110 💎 / $0.66</span>
-            <span class="stock-count">{{ pin_stock.get(1, 0) }}</span>
+            <span>{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</span>
+            <span class="stock-count">{{ pin_stock.get(price.id, 0) }}</span>
           </div>
-          <div class="stock-item">
-            <span>341 💎 / $2.25</span>
-            <span class="stock-count">{{ pin_stock.get(2, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>572 💎 / $3.66</span>
-            <span class="stock-count">{{ pin_stock.get(3, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>1.166 💎 / $7.10</span>
-            <span class="stock-count">{{ pin_stock.get(4, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>2.376 💎 / $14.44</span>
-            <span class="stock-count">{{ pin_stock.get(5, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>6.138 💎 / $33.10</span>
-            <span class="stock-count">{{ pin_stock.get(6, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>Tarjeta básica / $0.50</span>
-            <span class="stock-count">{{ pin_stock.get(7, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>Tarjeta semanal / $1.55</span>
-            <span class="stock-count">{{ pin_stock.get(8, 0) }}</span>
-          </div>
-          <div class="stock-item">
-            <span>Tarjeta mensual / $7.10</span>
-            <span class="stock-count">{{ pin_stock.get(9, 0) }}</span>
-          </div>
+          {% endfor %}
         </div>
       </div>
     </section>
