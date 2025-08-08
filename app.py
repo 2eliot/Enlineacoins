@@ -618,20 +618,15 @@ def admin_add_pin():
     if monto_id and pin_codigo:
         add_pin_freefire(int(monto_id), pin_codigo)
         
-        # Nombres de paquetes para el mensaje
-        paquetes = {
-            1: "110 💎 / $0.66",
-            2: "341 💎 / $2.25",
-            3: "572 💎 / $3.66",
-            4: "1.166 💎 / $7.10",
-            5: "2.376 💎 / $14.44",
-            6: "6.138 💎 / $33.10",
-            7: "Tarjeta básica / $0.50",
-            8: "Tarjeta semanal / $1.55",
-            9: "Tarjeta mensual / $7.10"
-        }
+        # Obtener información del paquete dinámicamente
+        packages_info = get_package_info_with_prices()
+        package_info = packages_info.get(int(monto_id), {})
         
-        paquete_nombre = paquetes.get(int(monto_id), "Paquete")
+        if package_info:
+            paquete_nombre = f"{package_info['nombre']} / ${package_info['precio']:.2f}"
+        else:
+            paquete_nombre = "Paquete desconocido"
+        
         flash(f'Pin agregado exitosamente para {paquete_nombre}', 'success')
     else:
         flash('Datos inválidos para agregar pin', 'error')
@@ -669,20 +664,15 @@ def admin_add_pins_batch():
     try:
         added_count = add_pins_batch(int(monto_id), pins_list)
         
-        # Nombres de paquetes para el mensaje
-        paquetes = {
-            1: "110 💎 / $0.66",
-            2: "341 💎 / $2.25",
-            3: "572 💎 / $3.66",
-            4: "1.166 💎 / $7.10",
-            5: "2.376 💎 / $14.44",
-            6: "6.138 💎 / $33.10",
-            7: "Tarjeta básica / $0.50",
-            8: "Tarjeta semanal / $1.55",
-            9: "Tarjeta mensual / $7.10"
-        }
+        # Obtener información del paquete dinámicamente
+        packages_info = get_package_info_with_prices()
+        package_info = packages_info.get(int(monto_id), {})
         
-        paquete_nombre = paquetes.get(int(monto_id), "Paquete")
+        if package_info:
+            paquete_nombre = f"{package_info['nombre']} / ${package_info['precio']:.2f}"
+        else:
+            paquete_nombre = "Paquete desconocido"
+        
         flash(f'Se agregaron {added_count} pines exitosamente para {paquete_nombre}', 'success')
         
     except Exception as e:
