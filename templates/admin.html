@@ -110,29 +110,63 @@
       <h2>📌 Gestión de Pines Free Fire</h2>
       
       <div class="pin-management">
-        <h3>Agregar Pin</h3>
-        <form method="POST" action="/admin/add_pin" class="admin-form">
-          <div class="form-group">
-            <label for="monto_id">Tipo de Paquete:</label>
-            <select id="monto_id" name="monto_id" required>
-              <option value="">Seleccione paquete</option>
-              <option value="1">110 💎 / $0.66</option>
-              <option value="2">341 💎 / $2.25</option>
-              <option value="3">572 💎 / $3.66</option>
-              <option value="4">1.166 💎 / $7.10</option>
-              <option value="5">2.376 💎 / $14.44</option>
-              <option value="6">6.138 💎 / $33.10</option>
-              <option value="7">Tarjeta básica / $0.50</option>
-              <option value="8">Tarjeta semanal / $1.55</option>
-              <option value="9">Tarjeta mensual / $7.10</option>
-            </select>
+        <div class="pin-forms-container">
+          <!-- Agregar Pin Individual -->
+          <div class="pin-form-section">
+            <h3>Agregar Pin Individual</h3>
+            <form method="POST" action="/admin/add_pin" class="admin-form">
+              <div class="form-group">
+                <label for="monto_id">Tipo de Paquete:</label>
+                <select id="monto_id" name="monto_id" required>
+                  <option value="">Seleccione paquete</option>
+                  <option value="1">110 💎 / $0.66</option>
+                  <option value="2">341 💎 / $2.25</option>
+                  <option value="3">572 💎 / $3.66</option>
+                  <option value="4">1.166 💎 / $7.10</option>
+                  <option value="5">2.376 💎 / $14.44</option>
+                  <option value="6">6.138 💎 / $33.10</option>
+                  <option value="7">Tarjeta básica / $0.50</option>
+                  <option value="8">Tarjeta semanal / $1.55</option>
+                  <option value="9">Tarjeta mensual / $7.10</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="pin_codigo">Código del Pin:</label>
+                <input type="text" id="pin_codigo" name="pin_codigo" placeholder="Ingrese el código del pin" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Agregar Pin</button>
+            </form>
           </div>
-          <div class="form-group">
-            <label for="pin_codigo">Código del Pin:</label>
-            <input type="text" id="pin_codigo" name="pin_codigo" placeholder="Ingrese el código del pin" required>
+
+          <!-- Agregar Pines en Lote -->
+          <div class="pin-form-section">
+            <h3>📦 Agregar Pines en Lote</h3>
+            <p class="batch-info">Agregue hasta 10 pines a la vez. Separe cada pin con una línea nueva o coma.</p>
+            <form method="POST" action="/admin/add_pins_batch" class="admin-form">
+              <div class="form-group">
+                <label for="batch_monto_id">Tipo de Paquete:</label>
+                <select id="batch_monto_id" name="batch_monto_id" required>
+                  <option value="">Seleccione paquete</option>
+                  <option value="1">110 💎 / $0.66</option>
+                  <option value="2">341 💎 / $2.25</option>
+                  <option value="3">572 💎 / $3.66</option>
+                  <option value="4">1.166 💎 / $7.10</option>
+                  <option value="5">2.376 💎 / $14.44</option>
+                  <option value="6">6.138 💎 / $33.10</option>
+                  <option value="7">Tarjeta básica / $0.50</option>
+                  <option value="8">Tarjeta semanal / $1.55</option>
+                  <option value="9">Tarjeta mensual / $7.10</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="pins_batch">Códigos de Pines (máximo 10):</label>
+                <textarea id="pins_batch" name="pins_batch" rows="6" placeholder="Ingrese los códigos de pines, uno por línea:&#10;PIN123456&#10;PIN789012&#10;PIN345678&#10;..." required></textarea>
+                <small class="form-help">Separe cada pin con una línea nueva o coma. Máximo 10 pines por lote.</small>
+              </div>
+              <button type="submit" class="btn btn-success">📦 Agregar Lote de Pines</button>
+            </form>
           </div>
-          <button type="submit" class="btn btn-primary">Agregar Pin</button>
-        </form>
+        </div>
       </div>
 
       <div class="pin-stock">

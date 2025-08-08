@@ -403,6 +403,25 @@ def add_pin_freefire(monto_id, pin_codigo):
     conn.commit()
     conn.close()
 
+def add_pins_batch(monto_id, pins_list):
+    """Añade múltiples pines de Free Fire al stock en lote"""
+    conn = get_db_connection()
+    try:
+        for pin_codigo in pins_list:
+            pin_codigo = pin_codigo.strip()
+            if pin_codigo:  # Solo agregar si el pin no está vacío
+                conn.execute('''
+                    INSERT INTO pines_freefire (monto_id, pin_codigo)
+                    VALUES (?, ?)
+                ''', (monto_id, pin_codigo))
+        conn.commit()
+        return len([p for p in pins_list if p.strip()])  # Retornar cantidad agregada
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
 def get_pin_stock():
     """Obtiene el stock de pines por monto_id"""
     conn = get_db_connection()
@@ -530,6 +549,58 @@ def admin_add_pin():
         flash(f'Pin agregado exitosamente para {paquete_nombre}', 'success')
     else:
         flash('Datos inválidos para agregar pin', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/add_pins_batch', methods=['POST'])
+def admin_add_pins_batch():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    monto_id = request.form.get('batch_monto_id')
+    pins_text = request.form.get('pins_batch')
+    
+    if not monto_id or not pins_text:
+        flash('Por favor complete todos los campos para el lote de pines', 'error')
+        return redirect('/admin')
+    
+    # Procesar los pines (separados por líneas o comas)
+    pins_list = []
+    for line in pins_text.replace(',', '\n').split('\n'):
+        pin = line.strip()
+        if pin:
+            pins_list.append(pin)
+    
+    if not pins_list:
+        flash('No se encontraron pines válidos en el texto', 'error')
+        return redirect('/admin')
+    
+    if len(pins_list) > 10:
+        flash('Máximo 10 pines por lote. Se procesarán solo los primeros 10.', 'warning')
+        pins_list = pins_list[:10]
+    
+    try:
+        added_count = add_pins_batch(int(monto_id), pins_list)
+        
+        # Nombres de paquetes para el mensaje
+        paquetes = {
+            1: "110 💎 / $0.66",
+            2: "341 💎 / $2.25",
+            3: "572 💎 / $3.66",
+            4: "1.166 💎 / $7.10",
+            5: "2.376 💎 / $14.44",
+            6: "6.138 💎 / $33.10",
+            7: "Tarjeta básica / $0.50",
+            8: "Tarjeta semanal / $1.55",
+            9: "Tarjeta mensual / $7.10"
+        }
+        
+        paquete_nombre = paquetes.get(int(monto_id), "Paquete")
+        flash(f'Se agregaron {added_count} pines exitosamente para {paquete_nombre}', 'success')
+        
+    except Exception as e:
+        flash(f'Error al agregar pines en lote: {str(e)}', 'error')
     
     return redirect('/admin')
 
