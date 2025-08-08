@@ -250,17 +250,22 @@ def index():
     if is_admin:
         # Admin ve todas las transacciones de todos los usuarios
         transactions = get_user_transactions(None, is_admin=True)
+        balance = 0  # Admin no tiene saldo
     else:
         # Usuario normal ve solo sus transacciones
         if 'user_db_id' in session:
+            # Actualizar saldo desde la base de datos SIEMPRE
             conn = get_db_connection()
             user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (session['user_db_id'],)).fetchone()
             if user:
                 session['saldo'] = user['saldo']
+                balance = user['saldo']
+            else:
+                balance = 0
             conn.close()
             transactions = get_user_transactions(session['user_db_id'], is_admin=False)
-    
-    balance = session.get('saldo', 0)
+        else:
+            balance = 0
     
     return render_template('index.html', user_id=user_id, balance=balance, transactions=transactions)
 
