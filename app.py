@@ -76,6 +76,37 @@ def init_db():
         )
     ''')
     
+    # Tabla de precios de paquetes
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS precios_paquetes (
+            id INTEGER PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            precio REAL NOT NULL,
+            descripcion TEXT NOT NULL,
+            activo BOOLEAN DEFAULT TRUE,
+            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Insertar precios por defecto si no existen
+    cursor.execute('SELECT COUNT(*) FROM precios_paquetes')
+    if cursor.fetchone()[0] == 0:
+        precios_default = [
+            (1, '110 💎', 0.66, '110 Diamantes Free Fire', True),
+            (2, '341 💎', 2.25, '341 Diamantes Free Fire', True),
+            (3, '572 💎', 3.66, '572 Diamantes Free Fire', True),
+            (4, '1.166 💎', 7.10, '1.166 Diamantes Free Fire', True),
+            (5, '2.376 💎', 14.44, '2.376 Diamantes Free Fire', True),
+            (6, '6.138 💎', 33.10, '6.138 Diamantes Free Fire', True),
+            (7, 'Tarjeta básica', 0.50, 'Tarjeta básica Free Fire', True),
+            (8, 'Tarjeta semanal', 1.55, 'Tarjeta semanal Free Fire', True),
+            (9, 'Tarjeta mensual', 7.10, 'Tarjeta mensual Free Fire', True)
+        ]
+        cursor.executemany('''
+            INSERT INTO precios_paquetes (id, nombre, precio, descripcion, activo)
+            VALUES (?, ?, ?, ?, ?)
+        ''', precios_default)
+    
     conn.commit()
     conn.close()
 
@@ -459,6 +490,60 @@ def get_all_pins():
     conn.close()
     return pins
 
+# Funciones para gestión de precios
+def get_all_prices():
+    """Obtiene todos los precios de paquetes"""
+    conn = get_db_connection()
+    prices = conn.execute('''
+        SELECT * FROM precios_paquetes 
+        ORDER BY id
+    ''').fetchall()
+    conn.close()
+    return prices
+
+def get_price_by_id(monto_id):
+    """Obtiene el precio de un paquete específico"""
+    conn = get_db_connection()
+    price = conn.execute('''
+        SELECT precio FROM precios_paquetes 
+        WHERE id = ? AND activo = TRUE
+    ''', (monto_id,)).fetchone()
+    conn.close()
+    return price['precio'] if price else 0
+
+def update_package_price(package_id, new_price):
+    """Actualiza el precio de un paquete"""
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE precios_paquetes 
+        SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (new_price, package_id))
+    conn.commit()
+    conn.close()
+
+def get_package_info_with_prices():
+    """Obtiene información de paquetes con precios dinámicos"""
+    conn = get_db_connection()
+    packages = conn.execute('''
+        SELECT id, nombre, precio, descripcion 
+        FROM precios_paquetes 
+        WHERE activo = TRUE 
+        ORDER BY id
+    ''').fetchall()
+    conn.close()
+    
+    # Convertir a diccionario para fácil acceso
+    package_dict = {}
+    for package in packages:
+        package_dict[package['id']] = {
+            'nombre': package['nombre'],
+            'precio': package['precio'],
+            'descripcion': package['descripcion']
+        }
+    
+    return package_dict
+
 # Rutas de administrador
 @app.route('/admin')
 def admin_panel():
@@ -468,7 +553,8 @@ def admin_panel():
     
     users = get_all_users()
     pin_stock = get_pin_stock()
-    return render_template('admin.html', users=users, pin_stock=pin_stock)
+    prices = get_all_prices()
+    return render_template('admin.html', users=users, pin_stock=pin_stock, prices=prices)
 
 @app.route('/admin/add_credit', methods=['POST'])
 def admin_add_credit():
@@ -601,6 +687,45 @@ def admin_add_pins_batch():
         
     except Exception as e:
         flash(f'Error al agregar pines en lote: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/update_price', methods=['POST'])
+def admin_update_price():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    package_id = request.form.get('package_id')
+    new_price = request.form.get('new_price')
+    
+    if not package_id or not new_price:
+        flash('Datos inválidos para actualizar precio', 'error')
+        return redirect('/admin')
+    
+    try:
+        new_price = float(new_price)
+        if new_price < 0:
+            flash('El precio no puede ser negativo', 'error')
+            return redirect('/admin')
+        
+        # Obtener información del paquete antes de actualizar
+        conn = get_db_connection()
+        package = conn.execute('SELECT nombre FROM precios_paquetes WHERE id = ?', (package_id,)).fetchone()
+        conn.close()
+        
+        if not package:
+            flash('Paquete no encontrado', 'error')
+            return redirect('/admin')
+        
+        # Actualizar precio
+        update_package_price(int(package_id), new_price)
+        flash(f'Precio actualizado exitosamente para {package["nombre"]}: ${new_price:.2f}', 'success')
+        
+    except ValueError:
+        flash('Precio inválido. Debe ser un número válido.', 'error')
+    except Exception as e:
+        flash(f'Error al actualizar precio: {str(e)}', 'error')
     
     return redirect('/admin')
 

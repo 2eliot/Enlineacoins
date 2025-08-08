@@ -211,6 +211,49 @@
         </div>
       </div>
     </section>
+
+    <!-- Gestión de Precios -->
+    <section class="prices-section">
+      <h2>💰 Gestión de Precios</h2>
+      
+      <div class="prices-management">
+        <p class="prices-info">Modifique los precios de los paquetes. Los cambios se aplicarán inmediatamente en toda la aplicación.</p>
+        
+        <div class="prices-grid">
+          {% for price in prices %}
+          <div class="price-card">
+            <div class="price-header">
+              <h4>{{ price.nombre }}</h4>
+              <span class="current-price">${{ "%.2f"|format(price.precio) }}</span>
+            </div>
+            <div class="price-description">{{ price.descripcion }}</div>
+            
+            <form method="POST" action="/admin/update_price" class="price-form">
+              <input type="hidden" name="package_id" value="{{ price.id }}">
+              <div class="price-input-group">
+                <label for="price_{{ price.id }}">Nuevo precio:</label>
+                <div class="input-with-button">
+                  <input type="number" 
+                         id="price_{{ price.id }}" 
+                         name="new_price" 
+                         step="0.01" 
+                         min="0" 
+                         value="{{ price.precio }}" 
+                         placeholder="0.00" 
+                         required>
+                  <button type="submit" class="btn btn-update">Actualizar</button>
+                </div>
+              </div>
+            </form>
+            
+            <div class="price-meta">
+              <small>Última actualización: {{ price.fecha_actualizacion[:16] if price.fecha_actualizacion else 'N/A' }}</small>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
