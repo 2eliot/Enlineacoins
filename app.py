@@ -745,36 +745,6 @@ def billetera():
                          user_id=session.get('id', '00000'),
                          balance=session.get('saldo', 0))
 
-@app.route('/juego/freefire_latam')
-def freefire_latam():
-    if 'usuario' not in session:
-        return redirect('/auth')
-    
-    # Solo usuarios normales pueden acceder a juegos
-    if session.get('is_admin'):
-        flash('Los administradores no pueden acceder a juegos', 'error')
-        return redirect('/')
-    
-    # Actualizar saldo desde la base de datos
-    user_id = session.get('user_db_id')
-    if user_id:
-        conn = get_db_connection()
-        user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
-        if user:
-            session['saldo'] = user['saldo']
-        conn.close()
-    
-    # Obtener stock de pines
-    stock = get_pin_stock()
-    
-    # Obtener precios dinámicos
-    prices = get_package_info_with_prices()
-    
-    return render_template('freefire_latam.html', 
-                         user_id=session.get('id', '00000'),
-                         balance=session.get('saldo', 0),
-                         stock=stock,
-                         prices=prices)
 
 @app.route('/validar/freefire_latam', methods=['POST'])
 def validar_freefire_latam():
@@ -868,24 +838,58 @@ def validar_freefire_latam():
     # Actualizar saldo en sesión
     session['saldo'] = saldo_actual - precio
     
-    # Obtener stock actualizado
+    # Guardar datos de la compra en la sesión para mostrar después del redirect
+    session['compra_exitosa'] = {
+        'paquete_nombre': paquete_nombre,
+        'monto_compra': precio,
+        'numero_control': numero_control,
+        'pin': pin_codigo,
+        'transaccion_id': transaccion_id
+    }
+    
+    # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
+    return redirect('/juego/freefire_latam?compra=exitosa')
+
+@app.route('/juego/freefire_latam')
+def freefire_latam():
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    # Solo usuarios normales pueden acceder a juegos
+    if session.get('is_admin'):
+        flash('Los administradores no pueden acceder a juegos', 'error')
+        return redirect('/')
+    
+    # Actualizar saldo desde la base de datos
+    user_id = session.get('user_db_id')
+    if user_id:
+        conn = get_db_connection()
+        user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+        if user:
+            session['saldo'] = user['saldo']
+        conn.close()
+    
+    # Obtener stock de pines
     stock = get_pin_stock()
     
-    # Obtener precios dinámicos para el template
+    # Obtener precios dinámicos
     prices = get_package_info_with_prices()
     
-    # Mostrar los datos de la compra en la misma página
+    # Verificar si hay una compra exitosa para mostrar
+    compra_exitosa = False
+    compra_data = {}
+    
+    if request.args.get('compra') == 'exitosa' and 'compra_exitosa' in session:
+        compra_exitosa = True
+        compra_data = session.pop('compra_exitosa')  # Remover después de usar
+    
     return render_template('freefire_latam.html', 
                          user_id=session.get('id', '00000'),
                          balance=session.get('saldo', 0),
                          stock=stock,
                          prices=prices,
-                         compra_exitosa=True,
-                         paquete_nombre=paquete_nombre,
-                         monto_compra=precio,
-                         numero_control=numero_control,
-                         pin=pin_codigo,
-                         transaccion_id=transaccion_id)
+                         compra_exitosa=compra_exitosa,
+                         **compra_data)  # Desempaquetar los datos de la compra
 
 @app.route('/logout')
 def logout():
