@@ -32,6 +32,7 @@
 
   <!-- Panel principal -->
   <main class="admin-main">
+    <!-- Estadísticas generales -->
     <div class="stats-section">
       <div class="stat-card">
         <h3>Total de Usuarios</h3>
@@ -43,8 +44,17 @@
       </div>
     </div>
 
-    <!-- Lista de usuarios -->
-    <section class="users-section">
+    <!-- Sistema de pestañas -->
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button class="tab-button active" onclick="showTab('usuarios')">👥 Usuarios</button>
+        <button class="tab-button" onclick="showTab('pines')">📌 Gestor de Pines</button>
+        <button class="tab-button" onclick="showTab('precios')">💰 Precios</button>
+      </div>
+
+      <!-- Pestaña de Usuarios -->
+      <div id="tab-usuarios" class="tab-content active">
+        <section class="users-section">
       <h2>Gestión de Usuarios</h2>
       
       {% if users %}
@@ -103,10 +113,12 @@
           <p>No hay usuarios registrados en el sistema.</p>
         </div>
       {% endif %}
-    </section>
+        </section>
+      </div>
 
-    <!-- Gestión de Pines Free Fire -->
-    <section class="pins-section">
+      <!-- Pestaña de Gestor de Pines -->
+      <div id="tab-pines" class="tab-content">
+        <section class="pins-section">
       <h2>📌 Gestión de Pines Free Fire</h2>
       
       <div class="pin-management">
@@ -167,51 +179,96 @@
           </div>
           {% endfor %}
         </div>
+        </div>
+        </section>
       </div>
-    </section>
 
-    <!-- Gestión de Precios -->
-    <section class="prices-section">
-      <h2>💰 Gestión de Precios</h2>
-      
-      <div class="prices-management">
-        <p class="prices-info">Modifique los precios de los paquetes. Los cambios se aplicarán inmediatamente en toda la aplicación.</p>
-        
-        <div class="prices-grid">
-          {% for price in prices %}
-          <div class="price-card">
-            <div class="price-header">
-              <h4>{{ price.nombre }}</h4>
-              <span class="current-price">${{ "%.2f"|format(price.precio) }}</span>
-            </div>
-            <div class="price-description">{{ price.descripcion }}</div>
-            
-            <form method="POST" action="/admin/update_price" class="price-form">
-              <input type="hidden" name="package_id" value="{{ price.id }}">
-              <div class="price-input-group">
-                <label for="price_{{ price.id }}">Nuevo precio:</label>
-                <div class="input-with-button">
-                  <input type="number" 
-                         id="price_{{ price.id }}" 
-                         name="new_price" 
-                         step="0.01" 
-                         min="0" 
-                         value="{{ price.precio }}" 
-                         placeholder="0.00" 
-                         required>
-                  <button type="submit" class="btn btn-update">Actualizar</button>
+      <!-- Pestaña de Precios -->
+      <div id="tab-precios" class="tab-content">
+        <section class="prices-section">
+          <h2>💰 Gestión de Precios</h2>
+          
+          <div class="prices-management">
+            <div class="price-selector-container">
+              <h3>Modificar Precios</h3>
+              <p class="prices-info">Seleccione el juego y paquete para modificar su precio. Los cambios se aplicarán inmediatamente.</p>
+              
+              <form method="POST" action="/admin/update_price" class="price-selector-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="game_select">🎮 Juego:</label>
+                    <select id="game_select" onchange="updatePackages()">
+                      <option value="freefire">Free Fire Latam</option>
+                      <option value="freefire_global" disabled>Free Fire Global (Próximamente)</option>
+                      <option value="other_games" disabled>Otros Juegos (Próximamente)</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="package_select">📦 Paquete:</label>
+                    <select id="package_select" name="package_id" onchange="updatePriceInfo()" required>
+                      <option value="">Seleccione un paquete</option>
+                      {% for price in prices %}
+                        <option value="{{ price.id }}" 
+                                data-current-price="{{ price.precio }}" 
+                                data-name="{{ price.nombre }}" 
+                                data-description="{{ price.descripcion }}">
+                          {{ price.nombre }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="new_price_input">💰 Nuevo Precio:</label>
+                    <input type="number" 
+                           id="new_price_input" 
+                           name="new_price" 
+                           step="0.01" 
+                           min="0" 
+                           placeholder="0.00" 
+                           required>
+                  </div>
+                  
+                  <div class="form-group">
+                    <button type="submit" class="btn btn-update-price">Actualizar Precio</button>
+                  </div>
+                </div>
+              </form>
+              
+              <div id="price-info" class="price-info-display" style="display: none;">
+                <div class="current-price-info">
+                  <h4 id="selected-package-name">-</h4>
+                  <p id="selected-package-description">-</p>
+                  <div class="price-comparison">
+                    <span class="current-price-label">Precio actual:</span>
+                    <span id="current-price-value" class="current-price-badge">$0.00</span>
+                  </div>
                 </div>
               </div>
-            </form>
+            </div>
             
-            <div class="price-meta">
-              <small>Última actualización: {{ price.fecha_actualizacion[:16] if price.fecha_actualizacion else 'N/A' }}</small>
+            <div class="prices-overview">
+              <h3>Vista General de Precios</h3>
+              <div class="prices-grid">
+                {% for price in prices %}
+                <div class="price-overview-card">
+                  <div class="price-overview-header">
+                    <h4>{{ price.nombre }}</h4>
+                    <span class="price-badge">${{ "%.2f"|format(price.precio) }}</span>
+                  </div>
+                  <p class="price-overview-description">{{ price.descripcion }}</p>
+                  <div class="price-overview-meta">
+                    <small>Actualizado: {{ price.fecha_actualizacion[:16] if price.fecha_actualizacion else 'N/A' }}</small>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
             </div>
           </div>
-          {% endfor %}
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
   </main>
 
   <script>
@@ -223,6 +280,71 @@
         setTimeout(() => flashMessages.remove(), 300);
       }
     }, 2000);
+
+    // Sistema de pestañas
+    function showTab(tabName) {
+      // Ocultar todas las pestañas
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(tab => {
+        tab.classList.remove('active');
+      });
+
+      // Desactivar todos los botones
+      const tabButtons = document.querySelectorAll('.tab-button');
+      tabButtons.forEach(button => {
+        button.classList.remove('active');
+      });
+
+      // Mostrar la pestaña seleccionada
+      document.getElementById('tab-' + tabName).classList.add('active');
+      
+      // Activar el botón correspondiente
+      event.target.classList.add('active');
+    }
+
+    // Actualizar información de precios
+    function updatePriceInfo() {
+      const select = document.getElementById('package_select');
+      const selectedOption = select.options[select.selectedIndex];
+      const priceInfo = document.getElementById('price-info');
+      
+      if (selectedOption.value) {
+        const currentPrice = selectedOption.getAttribute('data-current-price');
+        const name = selectedOption.getAttribute('data-name');
+        const description = selectedOption.getAttribute('data-description');
+        
+        document.getElementById('selected-package-name').textContent = name;
+        document.getElementById('selected-package-description').textContent = description;
+        document.getElementById('current-price-value').textContent = '$' + parseFloat(currentPrice).toFixed(2);
+        document.getElementById('new_price_input').value = currentPrice;
+        
+        priceInfo.style.display = 'block';
+      } else {
+        priceInfo.style.display = 'none';
+        document.getElementById('new_price_input').value = '';
+      }
+    }
+
+    // Actualizar paquetes según el juego (preparado para futuros juegos)
+    function updatePackages() {
+      const gameSelect = document.getElementById('game_select');
+      const packageSelect = document.getElementById('package_select');
+      
+      // Por ahora solo Free Fire, pero preparado para expandir
+      if (gameSelect.value === 'freefire') {
+        // Los paquetes ya están cargados desde el servidor
+        packageSelect.disabled = false;
+      } else {
+        packageSelect.disabled = true;
+        packageSelect.value = '';
+        document.getElementById('price-info').style.display = 'none';
+      }
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', function() {
+      updatePackages();
+    });
   </script>
 </body>
 </html>

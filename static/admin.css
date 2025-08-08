@@ -522,6 +522,200 @@ body {
   font-size: 0.75rem;
 }
 
+/* Sistema de pestañas */
+.tabs-container {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  overflow: hidden;
+  margin-top: 2rem;
+}
+
+.tabs-header {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.tab-button.active {
+  background: #fff;
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.tab-content {
+  display: none;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Nueva interfaz de precios */
+.price-selector-container {
+  background: #f8f9fa;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid #e9ecef;
+}
+
+.price-selector-form {
+  margin-bottom: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.price-info-display {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.current-price-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1976d2;
+  font-size: 1.1rem;
+}
+
+.current-price-info p {
+  margin: 0 0 1rem 0;
+  color: #424242;
+  font-size: 0.9rem;
+}
+
+.price-comparison {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.current-price-label {
+  font-weight: 600;
+  color: #424242;
+}
+
+.current-price-badge {
+  background: #1976d2;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.btn-update-price {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-update-price:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.prices-overview {
+  margin-top: 2rem;
+}
+
+.prices-overview h3 {
+  margin-bottom: 1rem;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.price-overview-card {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.price-overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.price-overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.price-overview-header h4 {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+}
+
+.price-badge {
+  background: #28a745;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.price-overview-description {
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem 0;
+  font-style: italic;
+}
+
+.price-overview-meta {
+  border-top: 1px solid #f1f3f4;
+  padding-top: 0.5rem;
+}
+
+.price-overview-meta small {
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-header {
@@ -567,6 +761,29 @@ body {
   }
   
   .stock-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tabs-header {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    border-bottom: none;
+    border-right: 3px solid transparent;
+  }
+  
+  .tab-button.active {
+    border-right-color: #667eea;
+    border-bottom-color: transparent;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .prices-grid {
     grid-template-columns: 1fr;
   }
 }
