@@ -24,6 +24,11 @@ app.permanent_session_lifetime = timedelta(minutes=30)
 # Configuración de la base de datos
 DATABASE = os.environ.get('DATABASE_PATH', 'usuarios.db')
 
+# Crear directorio para la base de datos si no existe
+db_dir = os.path.dirname(DATABASE)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
+
 def init_db():
     """Inicializa la base de datos con las tablas necesarias"""
     conn = sqlite3.connect(DATABASE)
