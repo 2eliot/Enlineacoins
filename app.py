@@ -177,35 +177,26 @@ def get_user_transactions(user_id, is_admin=False):
             ORDER BY t.fecha DESC
         ''', (user_id,)).fetchall()
     
-    # Agregar información del paquete basado en el monto
+    # Obtener precios dinámicos de la base de datos
+    packages_info = get_package_info_with_prices()
+    
+    # Agregar información del paquete basado en el monto dinámico
     transactions_with_package = []
     for transaction in transactions:
         transaction_dict = dict(transaction)
         monto = abs(transaction['monto'])  # Usar valor absoluto para comparar
         
-        # Determinar el paquete basado en el monto
-        if monto == 0.66:
-            transaction_dict['paquete'] = "110 💎"
-        elif monto == 2.25:
-            transaction_dict['paquete'] = "341 💎"
-        elif monto == 3.66:
-            transaction_dict['paquete'] = "572 💎"
-        elif monto == 7.10:
-            # Puede ser 1.166 💎 o Tarjeta mensual
-            if "FF-" in transaction['transaccion_id']:
-                transaction_dict['paquete'] = "1.166 💎"
-            else:
-                transaction_dict['paquete'] = "Tarjeta mensual"
-        elif monto == 14.44:
-            transaction_dict['paquete'] = "2.376 💎"
-        elif monto == 33.10:
-            transaction_dict['paquete'] = "6.138 💎"
-        elif monto == 0.50:
-            transaction_dict['paquete'] = "Tarjeta básica"
-        elif monto == 1.55:
-            transaction_dict['paquete'] = "Tarjeta semanal"
-        else:
-            transaction_dict['paquete'] = "Paquete desconocido"
+        # Buscar el paquete que coincida con el monto (con tolerancia para decimales)
+        paquete_encontrado = False
+        for package_id, package_info in packages_info.items():
+            if abs(monto - package_info['precio']) < 0.01:  # Tolerancia de 1 centavo
+                transaction_dict['paquete'] = package_info['nombre']
+                paquete_encontrado = True
+                break
+        
+        # Si no se encuentra coincidencia exacta, usar el nombre por defecto
+        if not paquete_encontrado:
+            transaction_dict['paquete'] = f"Paquete ${monto:.2f}"
         
         transactions_with_package.append(transaction_dict)
     
