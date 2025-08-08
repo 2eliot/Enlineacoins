@@ -751,11 +751,6 @@ def validar_freefire_latam():
     if 'usuario' not in session:
         return redirect('/auth')
     
-    # Solo usuarios normales pueden hacer compras
-    if session.get('is_admin'):
-        flash('Los administradores no pueden realizar compras', 'error')
-        return redirect('/')
-    
     monto_id = request.form.get('monto')
     
     if not monto_id:
@@ -764,6 +759,7 @@ def validar_freefire_latam():
     
     monto_id = int(monto_id)
     user_id = session.get('user_db_id')
+    is_admin = session.get('is_admin', False)
     
     # Verificar si hay stock disponible
     available_pin = get_available_pin(monto_id)
@@ -783,10 +779,11 @@ def validar_freefire_latam():
     if precio == 0:
         flash('Paquete no encontrado o inactivo', 'error')
         return redirect('/juego/freefire_latam')
+    
     saldo_actual = session.get('saldo', 0)
     
-    # Verificar si tiene saldo suficiente
-    if saldo_actual < precio:
+    # Solo verificar saldo para usuarios normales, admin puede comprar sin saldo
+    if not is_admin and saldo_actual < precio:
         flash(f'Saldo insuficiente. Necesitas ${precio:.2f} pero tienes ${saldo_actual:.2f}', 'error')
         return redirect('/juego/freefire_latam')
     
@@ -804,17 +801,20 @@ def validar_freefire_latam():
     # Usar una sola conexión para todas las operaciones
     conn = get_db_connection()
     try:
-        # Actualizar saldo del usuario
-        conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio, user_id))
+        # Solo actualizar saldo si no es admin
+        if not is_admin:
+            conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio, user_id))
         
         # Eliminar el pin de la base de datos (ya no marcarlo como usado)
         conn.execute('DELETE FROM pines_freefire WHERE id = ?', (available_pin['id'],))
         
         # Registrar la transacción (guardar PIN desencriptado para el usuario)
+        # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
+        monto_transaccion = 0 if is_admin else -precio
         conn.execute('''
             INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
             VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, numero_control, pin_codigo, transaccion_id, -precio))
+        ''', (user_id, numero_control, pin_codigo, transaccion_id, monto_transaccion))
         
         # Limitar transacciones a 20 por usuario - eliminar las más antiguas si hay más de 20
         conn.execute('''
@@ -835,8 +835,9 @@ def validar_freefire_latam():
     finally:
         conn.close()
     
-    # Actualizar saldo en sesión
-    session['saldo'] = saldo_actual - precio
+    # Actualizar saldo en sesión solo si no es admin
+    if not is_admin:
+        session['saldo'] = saldo_actual - precio
     
     # Guardar datos de la compra en la sesión para mostrar después del redirect
     session['compra_exitosa'] = {
@@ -854,11 +855,6 @@ def validar_freefire_latam():
 def freefire_latam():
     if 'usuario' not in session:
         return redirect('/auth')
-    
-    # Solo usuarios normales pueden acceder a juegos
-    if session.get('is_admin'):
-        flash('Los administradores no pueden acceder a juegos', 'error')
-        return redirect('/')
     
     # Actualizar saldo desde la base de datos
     user_id = session.get('user_db_id')
