@@ -3,6 +3,9 @@ Flask==2.3.3
 Werkzeug==2.3.7
 pytz==2023.3
 
+# Para notificaciones por correo
+Flask-Mail==0.9.1
+
 # Utilidades (opcional)
 python-dotenv==1.0.0
 

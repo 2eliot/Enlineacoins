@@ -6,6 +6,8 @@ import secrets
 from datetime import timedelta, datetime
 import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+import threading
 
 app = Flask(__name__)
 
@@ -21,6 +23,18 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protección CSRF
 
 # Configuración de duración de sesión (30 minutos)
 app.permanent_session_lifetime = timedelta(minutes=30)
+
+# Configuración de correo electrónico
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+
+# Inicializar Flask-Mail
+mail = Mail(app)
 
 # Configuración de la base de datos
 DATABASE = os.environ.get('DATABASE_PATH', 'usuarios.db')
@@ -808,6 +822,106 @@ def get_all_bloodstriker_prices():
     conn.close()
     return prices
 
+# Funciones de notificación por correo
+def send_email_async(app, msg):
+    """Envía correo de forma asíncrona"""
+    with app.app_context():
+        try:
+            mail.send(msg)
+            print("Correo de notificación enviado exitosamente")
+        except Exception as e:
+            print(f"Error al enviar correo: {str(e)}")
+
+def send_bloodstriker_notification(transaction_data):
+    """Envía notificación por correo cuando hay una nueva transacción de Blood Striker"""
+    # Verificar si las credenciales de correo están configuradas
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        print("Credenciales de correo no configuradas. Notificación omitida.")
+        return
+    
+    try:
+        # Obtener correo del administrador
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@inefable.com')
+        
+        # Crear mensaje
+        msg = Message(
+            subject='🎯 Nueva Transacción Blood Striker Pendiente',
+            recipients=[admin_email],
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        # Contenido del correo
+        msg.html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #667eea; text-align: center;">🎯 Nueva Transacción Blood Striker</h2>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #333; margin-top: 0;">Detalles de la Transacción:</h3>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Usuario:</td>
+                            <td style="padding: 8px 0;">{transaction_data['nombre']} {transaction_data['apellido']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Correo:</td>
+                            <td style="padding: 8px 0;">{transaction_data['correo']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Player ID:</td>
+                            <td style="padding: 8px 0; font-family: monospace; background: #e9ecef; padding: 4px 8px; border-radius: 4px;">{transaction_data['player_id']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Paquete:</td>
+                            <td style="padding: 8px 0;">{transaction_data['paquete_nombre']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Monto:</td>
+                            <td style="padding: 8px 0; color: #dc3545; font-weight: bold;">${transaction_data['precio']:.2f}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Número de Control:</td>
+                            <td style="padding: 8px 0; font-family: monospace;">{transaction_data['numero_control']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">ID de Transacción:</td>
+                            <td style="padding: 8px 0; font-family: monospace;">{transaction_data['transaccion_id']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Fecha:</td>
+                            <td style="padding: 8px 0;">{transaction_data['fecha']}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 0; color: #856404;">
+                        <strong>⏳ Acción Requerida:</strong> Esta transacción está pendiente de aprobación. 
+                        Ingresa al panel de administración para aprobar o rechazar la solicitud.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <p style="color: #6c757d; font-size: 14px;">
+                        Este es un correo automático del sistema de notificaciones.<br>
+                        No responder a este correo.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Enviar correo de forma asíncrona
+        thread = threading.Thread(target=send_email_async, args=(app, msg))
+        thread.daemon = True
+        thread.start()
+        
+    except Exception as e:
+        print(f"Error al preparar notificación por correo: {str(e)}")
+
 # Rutas de administrador
 @app.route('/admin')
 def admin_panel():
@@ -1239,6 +1353,28 @@ def validar_bloodstriker():
         
         # Crear transacción pendiente
         transaction_data = create_bloodstriker_transaction(user_id, player_id, package_id, precio)
+        
+        # Obtener datos del usuario para la notificación
+        conn = get_db_connection()
+        user_data = conn.execute('''
+            SELECT nombre, apellido, correo FROM usuarios WHERE id = ?
+        ''', (user_id,)).fetchone()
+        conn.close()
+        
+        # Enviar notificación por correo al admin (solo si no es admin quien hace la compra)
+        if not is_admin and user_data:
+            notification_data = {
+                'nombre': user_data['nombre'],
+                'apellido': user_data['apellido'],
+                'correo': user_data['correo'],
+                'player_id': player_id,
+                'paquete_nombre': package_info.get('nombre', 'Paquete desconocido'),
+                'precio': precio,
+                'numero_control': transaction_data['numero_control'],
+                'transaccion_id': transaction_data['transaccion_id'],
+                'fecha': convert_to_venezuela_time(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            }
+            send_bloodstriker_notification(notification_data)
         
         # Guardar datos de la compra en la sesión para mostrar después del redirect
         session['compra_bloodstriker_exitosa'] = {
