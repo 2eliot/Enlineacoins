@@ -604,6 +604,43 @@ def get_all_pins():
     conn.close()
     return pins
 
+def remove_duplicate_pins():
+    """Elimina pines duplicados de la base de datos, manteniendo el más reciente de cada código"""
+    conn = get_db_connection()
+    try:
+        # Encontrar pines duplicados y eliminar los más antiguos
+        duplicates_removed = conn.execute('''
+            DELETE FROM pines_freefire 
+            WHERE id NOT IN (
+                SELECT MIN(id) 
+                FROM pines_freefire 
+                GROUP BY pin_codigo, monto_id
+            )
+        ''').rowcount
+        
+        conn.commit()
+        return duplicates_removed
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def get_duplicate_pins_count():
+    """Obtiene el número de pines duplicados en la base de datos"""
+    conn = get_db_connection()
+    try:
+        # Contar pines duplicados
+        result = conn.execute('''
+            SELECT COUNT(*) - COUNT(DISTINCT pin_codigo || '-' || monto_id) as duplicates
+            FROM pines_freefire
+            WHERE usado = FALSE
+        ''').fetchone()
+        
+        return result[0] if result else 0
+    finally:
+        conn.close()
+
 # Funciones para gestión de precios
 def get_all_prices():
     """Obtiene todos los precios de paquetes"""
@@ -1036,9 +1073,7 @@ def admin_add_pins_batch():
         flash('No se encontraron pines válidos en el texto', 'error')
         return redirect('/admin')
     
-    if len(pins_list) > 10:
-        flash('Máximo 10 pines por lote. Se procesarán solo los primeros 10.', 'warning')
-        pins_list = pins_list[:10]
+    # Sin límite de pines por lote
     
     try:
         added_count = add_pins_batch(int(monto_id), pins_list)
@@ -1056,6 +1091,23 @@ def admin_add_pins_batch():
         
     except Exception as e:
         flash(f'Error al agregar pines en lote: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/remove_duplicates', methods=['POST'])
+def admin_remove_duplicates():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        duplicates_removed = remove_duplicate_pins()
+        if duplicates_removed > 0:
+            flash(f'Se eliminaron {duplicates_removed} pines duplicados exitosamente', 'success')
+        else:
+            flash('No se encontraron pines duplicados para eliminar', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar pines duplicados: {str(e)}', 'error')
     
     return redirect('/admin')
 
@@ -1241,6 +1293,7 @@ def validar_freefire_latam():
         ''', (user_id, user_id))
         
         conn.commit()
+        
     except Exception as e:
         conn.rollback()
         flash('Error al procesar la compra. Intente nuevamente.', 'error')
