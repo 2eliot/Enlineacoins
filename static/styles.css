@@ -338,6 +338,54 @@ body {
   transform: scale(0.95);
 }
 
+/* Estilos para múltiples pines en el historial */
+.multiple-pins {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.pins-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #28a745;
+  margin-bottom: 0.25rem;
+}
+
+.pin-item-simple {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.copy-all-btn-simple {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  margin-top: 0.25rem;
+  align-self: flex-start;
+}
+
+.copy-all-btn-simple:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
+.copy-all-btn-simple:active {
+  transform: scale(0.95);
+}
+
 /* Footer de la transacción */
 .transaction-footer {
   display: flex;

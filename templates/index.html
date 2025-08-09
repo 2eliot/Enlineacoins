@@ -88,8 +88,26 @@
             
             <!-- PIN/Player ID para todas las transacciones -->
             <div class="transaction-pin">
-              <span class="pin-code-simple">{{ transaction.pin }}</span>
-              <button class="copy-btn-simple" onclick="copyTransactionPin('{{ transaction.pin }}')">📋</button>
+              {% if '\n' in transaction.pin %}
+                <!-- Múltiples pines -->
+                {% set pines_list = transaction.pin.split('\n') %}
+                <div class="multiple-pins">
+                  <span class="pins-count">{{ pines_list|length }} pines:</span>
+                  {% for pin in pines_list %}
+                    {% if pin.strip() %}
+                    <div class="pin-item-simple">
+                      <span class="pin-code-simple">{{ pin.strip() }}</span>
+                      <button class="copy-btn-simple" onclick="copyTransactionPin('{{ pin.strip() }}')">📋</button>
+                    </div>
+                    {% endif %}
+                  {% endfor %}
+                  <button class="copy-all-btn-simple" onclick="copyAllTransactionPins('{{ transaction.pin }}')">📋 Todos</button>
+                </div>
+              {% else %}
+                <!-- Pin único -->
+                <span class="pin-code-simple">{{ transaction.pin }}</span>
+                <button class="copy-btn-simple" onclick="copyTransactionPin('{{ transaction.pin }}')">📋</button>
+              {% endif %}
             </div>
             {% if transaction.get('is_bloodstriker') and session.get('is_admin') %}
             <!-- Botones para transacciones de Blood Striker (solo admin) -->
@@ -180,6 +198,49 @@
               btn.textContent = originalText;
               btn.style.background = '';
             }, 1500);
+          }
+        });
+      });
+    }
+    
+    function copyAllTransactionPins(allPins) {
+      navigator.clipboard.writeText(allPins).then(function() {
+        // Encontrar el botón "Todos" que se hizo clic
+        const buttons = document.querySelectorAll('.copy-all-btn-simple');
+        buttons.forEach(btn => {
+          if (btn.onclick.toString().includes(allPins.substring(0, 20))) {
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copiados';
+            btn.style.background = '#28a745';
+            
+            setTimeout(function() {
+              btn.textContent = originalText;
+              btn.style.background = '';
+            }, 2000);
+          }
+        });
+      }).catch(function(err) {
+        console.error('Error al copiar todos: ', err);
+        // Fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = allPins;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        // Feedback visual
+        const buttons = document.querySelectorAll('.copy-all-btn-simple');
+        buttons.forEach(btn => {
+          if (btn.onclick.toString().includes(allPins.substring(0, 20))) {
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copiados';
+            btn.style.background = '#28a745';
+            
+            setTimeout(function() {
+              btn.textContent = originalText;
+              btn.style.background = '';
+            }, 2000);
           }
         });
       });

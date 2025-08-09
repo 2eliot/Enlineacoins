@@ -1135,39 +1135,53 @@ def validar_freefire_latam():
         return redirect('/auth')
     
     monto_id = request.form.get('monto')
+    cantidad = request.form.get('cantidad')
     
-    if not monto_id:
-        flash('Por favor selecciona un paquete', 'error')
+    if not monto_id or not cantidad:
+        flash('Por favor selecciona un paquete y cantidad', 'error')
         return redirect('/juego/freefire_latam')
     
     monto_id = int(monto_id)
+    cantidad = int(cantidad)
     user_id = session.get('user_db_id')
     is_admin = session.get('is_admin', False)
     
-    # Verificar si hay stock disponible
-    available_pin = get_available_pin(monto_id)
-    if not available_pin:
-        flash('No hay stock disponible para este paquete', 'error')
+    # Validar cantidad (entre 1 y 10)
+    if cantidad < 1 or cantidad > 10:
+        flash('La cantidad debe estar entre 1 y 10 pines', 'error')
+        return redirect('/juego/freefire_latam')
+    
+    # Verificar si hay suficiente stock disponible
+    conn = get_db_connection()
+    stock_disponible = conn.execute('''
+        SELECT COUNT(*) FROM pines_freefire 
+        WHERE monto_id = ? AND usado = FALSE
+    ''', (monto_id,)).fetchone()[0]
+    conn.close()
+    
+    if stock_disponible < cantidad:
+        flash(f'Stock insuficiente. Solo hay {stock_disponible} pines disponibles', 'error')
         return redirect('/juego/freefire_latam')
     
     # Obtener precio dinámico de la base de datos
-    precio = get_price_by_id(monto_id)
+    precio_unitario = get_price_by_id(monto_id)
+    precio_total = precio_unitario * cantidad
     
     # Obtener información del paquete
     packages_info = get_package_info_with_prices()
     package_info = packages_info.get(monto_id, {})
     
-    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} / ${precio:.2f}"
+    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}"
     
-    if precio == 0:
+    if precio_unitario == 0:
         flash('Paquete no encontrado o inactivo', 'error')
         return redirect('/juego/freefire_latam')
     
     saldo_actual = session.get('saldo', 0)
     
     # Solo verificar saldo para usuarios normales, admin puede comprar sin saldo
-    if not is_admin and saldo_actual < precio:
-        flash(f'Saldo insuficiente. Necesitas ${precio:.2f} pero tienes ${saldo_actual:.2f}', 'error')
+    if not is_admin and saldo_actual < precio_total:
+        flash(f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
         return redirect('/juego/freefire_latam')
     
     # Procesar la compra
@@ -1178,26 +1192,42 @@ def validar_freefire_latam():
     numero_control = ''.join(random.choices(string.digits, k=10))
     transaccion_id = 'FF-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     
-    # Obtener el PIN directamente (ya está en texto plano)
-    pin_codigo = available_pin['pin_codigo']
-    
-    # Usar una sola conexión para todas las operaciones
+    # Obtener los pines disponibles
     conn = get_db_connection()
     try:
+        # Obtener los pines necesarios
+        pines_disponibles = conn.execute('''
+            SELECT * FROM pines_freefire 
+            WHERE monto_id = ? AND usado = FALSE 
+            LIMIT ?
+        ''', (monto_id, cantidad)).fetchall()
+        
+        if len(pines_disponibles) < cantidad:
+            flash('Error: No hay suficientes pines disponibles', 'error')
+            return redirect('/juego/freefire_latam')
+        
+        # Extraer códigos de pines
+        pines_codigos = [pin['pin_codigo'] for pin in pines_disponibles]
+        pines_ids = [pin['id'] for pin in pines_disponibles]
+        
         # Solo actualizar saldo si no es admin
         if not is_admin:
-            conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio, user_id))
+            conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio_total, user_id))
         
-        # Eliminar el pin de la base de datos (ya no marcarlo como usado)
-        conn.execute('DELETE FROM pines_freefire WHERE id = ?', (available_pin['id'],))
+        # Eliminar los pines de la base de datos
+        for pin_id in pines_ids:
+            conn.execute('DELETE FROM pines_freefire WHERE id = ?', (pin_id,))
         
-        # Registrar la transacción (guardar PIN desencriptado para el usuario)
+        # Registrar la transacción
+        # Para múltiples pines, guardar todos los códigos separados por comas
+        pines_texto = '\n'.join(pines_codigos)
+        
         # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
-        monto_transaccion = 0 if is_admin else -precio
+        monto_transaccion = 0 if is_admin else -precio_total
         conn.execute('''
             INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
             VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, numero_control, pin_codigo, transaccion_id, monto_transaccion))
+        ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
         
         # Limitar transacciones a 20 por usuario - eliminar las más antiguas si hay más de 20
         conn.execute('''
@@ -1220,16 +1250,29 @@ def validar_freefire_latam():
     
     # Actualizar saldo en sesión solo si no es admin
     if not is_admin:
-        session['saldo'] = saldo_actual - precio
+        session['saldo'] = saldo_actual - precio_total
     
     # Guardar datos de la compra en la sesión para mostrar después del redirect
-    session['compra_exitosa'] = {
-        'paquete_nombre': paquete_nombre,
-        'monto_compra': precio,
-        'numero_control': numero_control,
-        'pin': pin_codigo,
-        'transaccion_id': transaccion_id
-    }
+    if cantidad == 1:
+        # Para un solo pin, usar el formato anterior
+        session['compra_exitosa'] = {
+            'paquete_nombre': paquete_nombre,
+            'monto_compra': precio_total,
+            'numero_control': numero_control,
+            'pin': pines_codigos[0],
+            'transaccion_id': transaccion_id,
+            'cantidad_comprada': cantidad
+        }
+    else:
+        # Para múltiples pines, usar el nuevo formato
+        session['compra_exitosa'] = {
+            'paquete_nombre': paquete_nombre,
+            'monto_compra': precio_total,
+            'numero_control': numero_control,
+            'pines_list': pines_codigos,
+            'transaccion_id': transaccion_id,
+            'cantidad_comprada': cantidad
+        }
     
     # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
     return redirect('/juego/freefire_latam?compra=exitosa')
