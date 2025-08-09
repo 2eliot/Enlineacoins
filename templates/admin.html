@@ -199,6 +199,7 @@
                     <label for="game_select">🎮 Juego:</label>
                     <select id="game_select" onchange="updatePackages()">
                       <option value="freefire">Free Fire Latam</option>
+                      <option value="bloodstriker">Blood Striker</option>
                       <option value="freefire_global" disabled>Free Fire Global (Próximamente)</option>
                       <option value="other_games" disabled>Otros Juegos (Próximamente)</option>
                     </select>
@@ -325,20 +326,59 @@
       }
     }
 
-    // Actualizar paquetes según el juego (preparado para futuros juegos)
+    // Actualizar paquetes según el juego
     function updatePackages() {
       const gameSelect = document.getElementById('game_select');
       const packageSelect = document.getElementById('package_select');
+      const priceForm = packageSelect.closest('form');
       
-      // Por ahora solo Free Fire, pero preparado para expandir
+      // Limpiar opciones actuales
+      packageSelect.innerHTML = '<option value="">Seleccione un paquete</option>';
+      
       if (gameSelect.value === 'freefire') {
-        // Los paquetes ya están cargados desde el servidor
+        priceForm.action = '/admin/update_price';
         packageSelect.disabled = false;
+        
+        // Restaurar opciones de Free Fire
+        packageSelect.innerHTML = `
+          <option value="">Seleccione un paquete</option>
+          {% for price in prices %}
+          <option value="{{ price.id }}" 
+                  data-current-price="{{ price.precio }}" 
+                  data-name="{{ price.nombre }}" 
+                  data-description="{{ price.descripcion }}">
+            {{ price.nombre }}
+          </option>
+          {% endfor %}
+        `;
+        
+      } else if (gameSelect.value === 'bloodstriker') {
+        priceForm.action = '/admin/update_bloodstriker_price';
+        packageSelect.disabled = false;
+        
+        // Restaurar opciones de Blood Striker
+        packageSelect.innerHTML = `
+          <option value="">Seleccione un paquete</option>
+          {% if bloodstriker_prices %}
+          {% for price in bloodstriker_prices %}
+          <option value="{{ price.id }}" 
+                  data-current-price="{{ price.precio }}" 
+                  data-name="{{ price.nombre }}" 
+                  data-description="{{ price.descripcion }}">
+            {{ price.nombre }}
+          </option>
+          {% endfor %}
+          {% endif %}
+        `;
+        
       } else {
         packageSelect.disabled = true;
-        packageSelect.value = '';
-        document.getElementById('price-info').style.display = 'none';
+        priceForm.action = '/admin/update_price';
       }
+      
+      // Ocultar información de precio
+      document.getElementById('price-info').style.display = 'none';
+      document.getElementById('new_price_input').value = '';
     }
 
     // Inicializar

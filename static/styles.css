@@ -38,6 +38,35 @@ body {
   border: 1px solid #c3e6cb;
 }
 
+/* Mensajes flash para páginas de juegos */
+.flash-messages {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.flash-message {
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.flash-message.flash-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.flash-message.flash-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
 /* ==== HEADER ==== */
 .header {
   background-color: #222;
@@ -486,5 +515,417 @@ body {
   
   .transaction-footer {
     font-size: 0.7rem;
+  }
+}
+
+/* ==== ESTILOS PARA PÁGINAS DE JUEGOS ==== */
+.juego-container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.juego-titulo {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  color: #333;
+  font-weight: 700;
+}
+
+.juego-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.juego-form label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.juego-form button {
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.juego-form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.juego-descripcion {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.juego-descripcion p {
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.juego-descripcion ul {
+  margin-bottom: 1rem;
+}
+
+.juego-descripcion li {
+  margin-bottom: 0.5rem;
+}
+
+.nota-importante {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+}
+
+.nota-importante p {
+  margin: 0;
+  color: #856404;
+  font-size: 0.9rem;
+}
+
+.volver-container {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.volver-btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #6c757d;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.volver-btn:hover {
+  background: #5a6268;
+}
+
+/* Estilos para compra exitosa */
+.compra-exitosa {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  border: 2px solid #28a745;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.compra-exitosa h3 {
+  color: #155724;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.pin-container, .solicitud-container {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pin-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pin-label {
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.pin-code {
+  font-family: 'Courier New', monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #28a745;
+  background: #f8f9fa;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 2px solid #28a745;
+  margin: 0;
+}
+
+.copy-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+.monto-info {
+  text-align: center;
+}
+
+.monto-info p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.entrega-info {
+  margin-top: 1rem;
+  color: #155724;
+}
+
+.entrega-info p {
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+
+/* Estilos específicos para Blood Striker */
+.solicitud-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.solicitud-label {
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.solicitud-estado {
+  font-family: 'Courier New', monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffc107;
+  background: #f8f9fa;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 2px solid #ffc107;
+  margin: 0;
+}
+
+.detalles-info {
+  text-align: left;
+}
+
+.detalles-info p {
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+/* Responsive para páginas de juegos */
+@media (max-width: 768px) {
+  .juego-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .juego-titulo {
+    font-size: 1.5rem;
+  }
+  
+  .pin-info, .solicitud-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .pin-code, .solicitud-estado {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .juego-container {
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+  
+  .juego-titulo {
+    font-size: 1.3rem;
+  }
+  
+  .juego-form {
+    gap: 1rem;
+  }
+  
+  .form-control {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+  
+  .juego-form button {
+    padding: 0.8rem;
+    font-size: 1rem;
+  }
+}
+
+/* ==== ESTILOS PARA TRANSACCIONES DE BLOOD STRIKER ==== */
+.bloodstriker-transaction {
+  border: 1px solid #dee2e6;
+  background: #fff;
+}
+
+.bloodstriker-transaction .control-num {
+  color: #495057;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.bloodstriker-transaction .package {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.bloodstriker-transaction .cost {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+/* Contenedor de acciones para los botones */
+.transaction-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* Botones de block */
+.block-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  text-align: center;
+}
+
+.block-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.block-btn:active {
+  transform: translateY(0);
+}
+
+.block-btn.approve {
+  background-color: #28a745;
+  color: white;
+}
+
+.block-btn.approve:hover {
+  background-color: #218838;
+}
+
+.block-btn.reject {
+  background-color: #dc3545;
+  color: white;
+}
+
+.block-btn.reject:hover {
+  background-color: #c82333;
+}
+
+.block-btn.pending {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.block-btn.pending:hover {
+  background-color: #e0a800;
+}
+
+/* Responsive para botones de block */
+@media (max-width: 768px) {
+  .transaction-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .transaction-actions {
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    order: 3;
+  }
+  
+  .transaction-pin {
+    order: 2;
+    align-self: flex-end;
+  }
+  
+  .block-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    min-width: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .transaction-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+    order: 3;
+  }
+  
+  .transaction-pin {
+    order: 2;
+    align-self: center;
+  }
+  
+  .block-btn {
+    width: 100%;
+    padding: 0.4rem;
+    font-size: 0.8rem;
   }
 }

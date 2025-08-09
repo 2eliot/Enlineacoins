@@ -120,6 +120,26 @@ body {
   color: #333;
 }
 
+.stat-link {
+  display: inline-block;
+  background: linear-gradient(90deg, #8B0000, #DC143C);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.stat-link:hover {
+  background: linear-gradient(90deg, #A52A2A, #FF1493);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 20, 60, 0.3);
+}
+
 /* Sección de usuarios */
 .users-section {
   background: white;
