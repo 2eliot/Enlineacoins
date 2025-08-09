@@ -169,7 +169,7 @@
         </div>
       </div>
 
-      <div class="pin-stock">
+        <div class="pin-stock">
         <h3>Stock de Pines</h3>
         <div class="stock-grid">
           {% for price in prices %}
@@ -178,6 +178,20 @@
             <span class="stock-count">{{ pin_stock.get(price.id, 0) }}</span>
           </div>
           {% endfor %}
+        </div>
+        
+        <!-- Herramientas de mantenimiento -->
+        <div class="pin-maintenance">
+          <h3>🔧 Herramientas de Mantenimiento</h3>
+          <div class="maintenance-actions">
+            <form method="POST" action="/admin/remove_duplicates" class="maintenance-form" onsubmit="return confirm('¿Estás seguro de eliminar todos los pines duplicados? Esta acción no se puede deshacer.')">
+              <div class="maintenance-info">
+                <p>🗑️ <strong>Eliminar Pines Duplicados</strong></p>
+                <small>Esta función eliminará automáticamente todos los pines duplicados de la base de datos, manteniendo solo el más reciente de cada código único por paquete.</small>
+              </div>
+              <button type="submit" class="btn btn-maintenance">🗑️ Eliminar Duplicados</button>
+            </form>
+          </div>
         </div>
         </div>
         </section>
