@@ -377,6 +377,14 @@ body {
   background: #f8f9fa;
   border-radius: 6px;
   border-left: 4px solid #667eea;
+  gap: 1rem;
+}
+
+.stock-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
 }
 
 .stock-count {
@@ -387,6 +395,85 @@ body {
   font-weight: bold;
   min-width: 30px;
   text-align: center;
+}
+
+.stock-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.external-api-form {
+  margin: 0;
+}
+
+.btn-external-api {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-external-api:hover {
+  background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.api-status-section {
+  background: #e8f5e8;
+  border: 1px solid #c3e6cb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.api-status-section h4 {
+  color: #155724;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.api-status-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.api-status-info p {
+  color: #155724;
+  margin: 0;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.test-api-form {
+  margin: 0;
+}
+
+.btn-test-api {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-test-api:hover {
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
 }
 
 .btn-primary {

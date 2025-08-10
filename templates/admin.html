@@ -174,10 +174,31 @@
         <div class="stock-grid">
           {% for price in prices %}
           <div class="stock-item">
-            <span>{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</span>
-            <span class="stock-count">{{ pin_stock.get(price.id, 0) }}</span>
+            <div class="stock-info">
+              <span>{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</span>
+              <span class="stock-count">{{ pin_stock.get(price.id, 0) }}</span>
+            </div>
+            <div class="stock-actions">
+              <form method="POST" action="/admin/request_external_pin" class="external-api-form">
+                <input type="hidden" name="monto_id" value="{{ price.id }}">
+                <button type="submit" class="btn btn-external-api" title="Obtener pin de API externa y agregarlo al stock local">
+                  🌐 API Externa
+                </button>
+              </form>
+            </div>
           </div>
           {% endfor %}
+        </div>
+        
+        <!-- Estado de API Externa -->
+        <div class="api-status-section">
+          <h4>🌐 Estado de API Externa</h4>
+          <div class="api-status-info">
+            <p>La API externa permite obtener pines automáticamente cuando el stock local está bajo.</p>
+            <form method="POST" action="/admin/test_external_api" class="test-api-form">
+              <button type="submit" class="btn btn-test-api">🧪 Probar Conexión API</button>
+            </form>
+          </div>
         </div>
         
         <!-- Herramientas de mantenimiento -->

@@ -1790,27 +1790,21 @@ def admin_request_external_pin():
             flash('Monto ID debe estar entre 1 y 9', 'error')
             return redirect('/admin')
         
-        inefable_client = get_inefable_client()
-        result = inefable_client.request_pin(monto_id)
+        # Usar la nueva función del pin_manager
+        pin_manager = create_pin_manager(DATABASE)
+        result = pin_manager.request_pin_from_external_api(monto_id)
         
         if result.get('status') == 'success':
-            pin_code = result.get('pin_code')
+            # Obtener información del paquete
+            packages_info = get_package_info_with_prices()
+            package_info = packages_info.get(monto_id, {})
+            paquete_nombre = package_info.get('nombre', f'Paquete {monto_id}')
             
-            # Agregar el pin obtenido al stock local
-            pin_manager = create_pin_manager(DATABASE)
-            success, message = pin_manager.add_local_pin(monto_id, pin_code, source='inefable_api_manual')
-            
-            if success:
-                # Obtener información del paquete
-                packages_info = get_package_info_with_prices()
-                package_info = packages_info.get(monto_id, {})
-                paquete_nombre = package_info.get('nombre', f'Paquete {monto_id}')
-                
-                flash(f'✅ Pin obtenido de API externa y agregado al stock: {paquete_nombre}', 'success')
-            else:
-                flash(f'Pin obtenido pero error al agregar al stock: {message}', 'warning')
+            flash(f'✅ Pin obtenido de API externa y agregado al stock: {paquete_nombre}', 'success')
+        elif result.get('status') == 'warning':
+            flash(f'⚠️ {result.get("message")}', 'warning')
         else:
-            flash(f'❌ Error al obtener pin de API externa: {result.get("message", "Error desconocido")}', 'error')
+            flash(f'❌ {result.get("message", "Error desconocido")}', 'error')
             
     except ValueError:
         flash('Monto ID debe ser un número válido', 'error')
