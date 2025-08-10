@@ -8,6 +8,8 @@ import pytz
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 import threading
+from pin_manager import create_pin_manager
+from inefable_api_client import get_inefable_client
 
 app = Flask(__name__)
 
@@ -241,9 +243,12 @@ def create_user(nombre, apellido, telefono, correo, contraseña):
         conn.close()
         return None
 
-def get_user_transactions(user_id, is_admin=False):
-    """Obtiene las transacciones de un usuario con información del paquete"""
+def get_user_transactions(user_id, is_admin=False, page=1, per_page=10):
+    """Obtiene las transacciones de un usuario con información del paquete y paginación"""
     conn = get_db_connection()
+    
+    # Calcular offset para paginación
+    offset = (page - 1) * per_page
     
     if is_admin:
         # Admin ve todas las transacciones de todos los usuarios
@@ -252,7 +257,14 @@ def get_user_transactions(user_id, is_admin=False):
             FROM transacciones t
             JOIN usuarios u ON t.usuario_id = u.id
             ORDER BY t.fecha DESC
-        ''').fetchall()
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset)).fetchall()
+        
+        # Obtener total de transacciones para paginación
+        total_count = conn.execute('''
+            SELECT COUNT(*) FROM transacciones t
+            JOIN usuarios u ON t.usuario_id = u.id
+        ''').fetchone()[0]
     else:
         # Usuario normal ve solo sus transacciones
         transactions = conn.execute('''
@@ -261,7 +273,15 @@ def get_user_transactions(user_id, is_admin=False):
             JOIN usuarios u ON t.usuario_id = u.id
             WHERE t.usuario_id = ? 
             ORDER BY t.fecha DESC
-        ''', (user_id,)).fetchall()
+            LIMIT ? OFFSET ?
+        ''', (user_id, per_page, offset)).fetchall()
+        
+        # Obtener total de transacciones del usuario para paginación
+        total_count = conn.execute('''
+            SELECT COUNT(*) FROM transacciones t
+            JOIN usuarios u ON t.usuario_id = u.id
+            WHERE t.usuario_id = ?
+        ''', (user_id,)).fetchone()[0]
     
     # Obtener precios dinámicos de la base de datos (Free Fire y Blood Striker)
     packages_info = get_package_info_with_prices()
@@ -301,7 +321,25 @@ def get_user_transactions(user_id, is_admin=False):
         transactions_with_package.append(transaction_dict)
     
     conn.close()
-    return transactions_with_package
+    
+    # Calcular información de paginación
+    total_pages = (total_count + per_page - 1) // per_page  # Redondear hacia arriba
+    has_prev = page > 1
+    has_next = page < total_pages
+    
+    return {
+        'transactions': transactions_with_package,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total_count,
+            'total_pages': total_pages,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'prev_num': page - 1 if has_prev else None,
+            'next_num': page + 1 if has_next else None
+        }
+    }
 
 def get_user_wallet_credits(user_id):
     """Obtiene los créditos de billetera de un usuario"""
@@ -334,20 +372,28 @@ def index():
     if 'usuario' not in session:
         return redirect('/auth')
     
+    # Obtener parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Transacciones por página
+    
     user_id = session.get('id', '00000')
-    transactions = []
+    transactions_data = {}
     is_admin = session.get('is_admin', False)
     
     if is_admin:
-        # Admin ve todas las transacciones de todos los usuarios
-        transactions = get_user_transactions(None, is_admin=True)
-        # Admin también ve transacciones pendientes de Blood Striker mezcladas
-        bloodstriker_transactions = get_pending_bloodstriker_transactions()
-        # Combinar transacciones normales con las de Blood Striker
-        all_transactions = list(transactions) + list(bloodstriker_transactions)
-        # Ordenar por fecha
-        all_transactions.sort(key=lambda x: x.get('fecha', ''), reverse=True)
-        transactions = all_transactions
+        # Admin ve todas las transacciones de todos los usuarios con paginación
+        transactions_data = get_user_transactions(None, is_admin=True, page=page, per_page=per_page)
+        
+        # Para admin, también agregar transacciones pendientes de Blood Striker solo en la primera página
+        if page == 1:
+            bloodstriker_transactions = get_pending_bloodstriker_transactions()
+            # Combinar transacciones normales con las de Blood Striker
+            all_transactions = list(transactions_data['transactions']) + list(bloodstriker_transactions)
+            # Ordenar por fecha
+            all_transactions.sort(key=lambda x: x.get('fecha', ''), reverse=True)
+            # Tomar solo las primeras per_page transacciones
+            transactions_data['transactions'] = all_transactions[:per_page]
+        
         balance = 0  # Admin no tiene saldo
     else:
         # Usuario normal ve solo sus transacciones
@@ -362,21 +408,28 @@ def index():
                 balance = 0
             conn.close()
             
-            # Obtener transacciones normales del usuario
-            transactions = get_user_transactions(session['user_db_id'], is_admin=False)
+            # Obtener transacciones normales del usuario con paginación
+            transactions_data = get_user_transactions(session['user_db_id'], is_admin=False, page=page, per_page=per_page)
             
-            # Obtener transacciones pendientes de Blood Striker del usuario
-            user_bloodstriker_transactions = get_user_pending_bloodstriker_transactions(session['user_db_id'])
-            
-            # Combinar transacciones normales con las de Blood Striker del usuario
-            all_user_transactions = list(transactions) + list(user_bloodstriker_transactions)
-            # Ordenar por fecha
-            all_user_transactions.sort(key=lambda x: x.get('fecha', ''), reverse=True)
-            transactions = all_user_transactions
+            # Para usuario normal, también agregar transacciones pendientes de Blood Striker solo en la primera página
+            if page == 1:
+                user_bloodstriker_transactions = get_user_pending_bloodstriker_transactions(session['user_db_id'])
+                # Combinar transacciones normales con las de Blood Striker del usuario
+                all_user_transactions = list(transactions_data['transactions']) + list(user_bloodstriker_transactions)
+                # Ordenar por fecha
+                all_user_transactions.sort(key=lambda x: x.get('fecha', ''), reverse=True)
+                # Tomar solo las primeras per_page transacciones
+                transactions_data['transactions'] = all_user_transactions[:per_page]
         else:
             balance = 0
+            transactions_data = {'transactions': [], 'pagination': {'page': 1, 'total_pages': 0, 'has_prev': False, 'has_next': False}}
     
-    return render_template('index.html', user_id=user_id, balance=balance, transactions=transactions, is_admin=is_admin)
+    return render_template('index.html', 
+                         user_id=user_id, 
+                         balance=balance, 
+                         transactions=transactions_data['transactions'],
+                         pagination=transactions_data['pagination'],
+                         is_admin=is_admin)
 
 @app.route('/auth')
 def auth():
@@ -970,7 +1023,17 @@ def admin_panel():
     pin_stock = get_pin_stock()
     prices = get_all_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
-    return render_template('admin.html', users=users, pin_stock=pin_stock, prices=prices, bloodstriker_prices=bloodstriker_prices)
+    
+    # Obtener estado de la API externa
+    pin_manager = create_pin_manager(DATABASE)
+    api_status = pin_manager.get_stock_status()
+    
+    return render_template('admin.html', 
+                         users=users, 
+                         pin_stock=pin_stock, 
+                         prices=prices, 
+                         bloodstriker_prices=bloodstriker_prices,
+                         api_status=api_status)
 
 @app.route('/admin/add_credit', methods=['POST'])
 def admin_add_credit():
@@ -1203,18 +1266,6 @@ def validar_freefire_latam():
         flash('La cantidad debe estar entre 1 y 10 pines', 'error')
         return redirect('/juego/freefire_latam')
     
-    # Verificar si hay suficiente stock disponible
-    conn = get_db_connection()
-    stock_disponible = conn.execute('''
-        SELECT COUNT(*) FROM pines_freefire 
-        WHERE monto_id = ? AND usado = FALSE
-    ''', (monto_id,)).fetchone()[0]
-    conn.close()
-    
-    if stock_disponible < cantidad:
-        flash(f'Stock insuficiente. Solo hay {stock_disponible} pines disponibles', 'error')
-        return redirect('/juego/freefire_latam')
-    
     # Obtener precio dinámico de la base de datos
     precio_unitario = get_price_by_id(monto_id)
     precio_total = precio_unitario * cantidad
@@ -1236,99 +1287,128 @@ def validar_freefire_latam():
         flash(f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
         return redirect('/juego/freefire_latam')
     
-    # Procesar la compra
-    import random
-    import string
+    # Usar el nuevo sistema de gestión de pines con respaldo de API externa
+    pin_manager = create_pin_manager(DATABASE)
     
-    # Generar datos de la transacción
-    numero_control = ''.join(random.choices(string.digits, k=10))
-    transaccion_id = 'FF-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    
-    # Obtener los pines disponibles
-    conn = get_db_connection()
     try:
-        # Obtener los pines necesarios
-        pines_disponibles = conn.execute('''
-            SELECT * FROM pines_freefire 
-            WHERE monto_id = ? AND usado = FALSE 
-            LIMIT ?
-        ''', (monto_id, cantidad)).fetchall()
+        # Solicitar pines usando el gestor con respaldo de API externa
+        if cantidad == 1:
+            # Para un solo pin
+            result = pin_manager.request_pin_with_fallback(monto_id, use_external_api=True)
+            
+            if result.get('status') == 'success':
+                pines_codigos = [result.get('pin_code')]
+                sources_used = [result.get('source')]
+            else:
+                flash(f'Error al obtener pin: {result.get("message", "Error desconocido")}', 'error')
+                return redirect('/juego/freefire_latam')
+        else:
+            # Para múltiples pines
+            result = pin_manager.request_multiple_pins(monto_id, cantidad, use_external_api=True)
+            
+            if result.get('status') in ['success', 'partial_success']:
+                pines_data = result.get('pins', [])
+                pines_codigos = [pin['pin_code'] for pin in pines_data]
+                sources_used = list(set([pin['source'] for pin in pines_data]))
+                
+                if result.get('status') == 'partial_success':
+                    cantidad_obtenida = len(pines_codigos)
+                    flash(f'Solo se pudieron obtener {cantidad_obtenida} de {cantidad} pines solicitados', 'warning')
+                    # Ajustar precio total según pines obtenidos
+                    precio_total = precio_unitario * cantidad_obtenida
+                    cantidad = cantidad_obtenida
+                    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}"
+            else:
+                flash(f'Error al obtener pines: {result.get("message", "Error desconocido")}', 'error')
+                return redirect('/juego/freefire_latam')
         
-        if len(pines_disponibles) < cantidad:
-            flash('Error: No hay suficientes pines disponibles', 'error')
+        # Verificar que se obtuvieron pines
+        if not pines_codigos:
+            flash('No se pudieron obtener pines. Intente nuevamente.', 'error')
             return redirect('/juego/freefire_latam')
         
-        # Extraer códigos de pines
-        pines_codigos = [pin['pin_codigo'] for pin in pines_disponibles]
-        pines_ids = [pin['id'] for pin in pines_disponibles]
+        # Generar datos de la transacción
+        import random
+        import string
+        numero_control = ''.join(random.choices(string.digits, k=10))
+        transaccion_id = 'FF-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         
-        # Solo actualizar saldo si no es admin
+        # Procesar la transacción
+        conn = get_db_connection()
+        try:
+            # Solo actualizar saldo si no es admin
+            if not is_admin:
+                conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio_total, user_id))
+            
+            # Registrar la transacción
+            pines_texto = '\n'.join(pines_codigos)
+            
+            # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
+            monto_transaccion = 0 if is_admin else -precio_total
+            
+            # Agregar información de fuente en el pin si viene de API externa
+            if 'inefable_api' in sources_used:
+                pines_texto += f"\n[Fuente: {', '.join(sources_used)}]"
+            
+            conn.execute('''
+                INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
+            
+            # Limitar transacciones a 20 por usuario
+            conn.execute('''
+                DELETE FROM transacciones 
+                WHERE usuario_id = ? AND id NOT IN (
+                    SELECT id FROM transacciones 
+                    WHERE usuario_id = ? 
+                    ORDER BY fecha DESC 
+                    LIMIT 20
+                )
+            ''', (user_id, user_id))
+            
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            flash('Error al procesar la transacción. Intente nuevamente.', 'error')
+            return redirect('/juego/freefire_latam')
+        finally:
+            conn.close()
+        
+        # Actualizar saldo en sesión solo si no es admin
         if not is_admin:
-            conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio_total, user_id))
+            session['saldo'] = saldo_actual - precio_total
         
-        # Eliminar los pines de la base de datos
-        for pin_id in pines_ids:
-            conn.execute('DELETE FROM pines_freefire WHERE id = ?', (pin_id,))
+        # Guardar datos de la compra en la sesión para mostrar después del redirect
+        if cantidad == 1:
+            # Para un solo pin
+            session['compra_exitosa'] = {
+                'paquete_nombre': paquete_nombre,
+                'monto_compra': precio_total,
+                'numero_control': numero_control,
+                'pin': pines_codigos[0],
+                'transaccion_id': transaccion_id,
+                'cantidad_comprada': cantidad,
+                'source': sources_used[0] if sources_used else 'local_stock'
+            }
+        else:
+            # Para múltiples pines
+            session['compra_exitosa'] = {
+                'paquete_nombre': paquete_nombre,
+                'monto_compra': precio_total,
+                'numero_control': numero_control,
+                'pines_list': pines_codigos,
+                'transaccion_id': transaccion_id,
+                'cantidad_comprada': cantidad,
+                'sources_used': sources_used
+            }
         
-        # Registrar la transacción
-        # Para múltiples pines, guardar todos los códigos separados por comas
-        pines_texto = '\n'.join(pines_codigos)
-        
-        # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
-        monto_transaccion = 0 if is_admin else -precio_total
-        conn.execute('''
-            INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
-        
-        # Limitar transacciones a 20 por usuario - eliminar las más antiguas si hay más de 20
-        conn.execute('''
-            DELETE FROM transacciones 
-            WHERE usuario_id = ? AND id NOT IN (
-                SELECT id FROM transacciones 
-                WHERE usuario_id = ? 
-                ORDER BY fecha DESC 
-                LIMIT 20
-            )
-        ''', (user_id, user_id))
-        
-        conn.commit()
+        # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
+        return redirect('/juego/freefire_latam?compra=exitosa')
         
     except Exception as e:
-        conn.rollback()
-        flash('Error al procesar la compra. Intente nuevamente.', 'error')
+        flash(f'Error inesperado al procesar la compra: {str(e)}', 'error')
         return redirect('/juego/freefire_latam')
-    finally:
-        conn.close()
-    
-    # Actualizar saldo en sesión solo si no es admin
-    if not is_admin:
-        session['saldo'] = saldo_actual - precio_total
-    
-    # Guardar datos de la compra en la sesión para mostrar después del redirect
-    if cantidad == 1:
-        # Para un solo pin, usar el formato anterior
-        session['compra_exitosa'] = {
-            'paquete_nombre': paquete_nombre,
-            'monto_compra': precio_total,
-            'numero_control': numero_control,
-            'pin': pines_codigos[0],
-            'transaccion_id': transaccion_id,
-            'cantidad_comprada': cantidad
-        }
-    else:
-        # Para múltiples pines, usar el nuevo formato
-        session['compra_exitosa'] = {
-            'paquete_nombre': paquete_nombre,
-            'monto_compra': precio_total,
-            'numero_control': numero_control,
-            'pines_list': pines_codigos,
-            'transaccion_id': transaccion_id,
-            'cantidad_comprada': cantidad
-        }
-    
-    # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
-    return redirect('/juego/freefire_latam?compra=exitosa')
 
 @app.route('/juego/freefire_latam')
 def freefire_latam():
@@ -1668,6 +1748,85 @@ def reject_bloodstriker_transaction(transaction_id):
         flash(f'Error al rechazar transacción: {str(e)}', 'error')
     
     return redirect('/')
+
+# Rutas de administración para API externa
+@app.route('/admin/test_external_api', methods=['POST'])
+def admin_test_external_api():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        pin_manager = create_pin_manager(DATABASE)
+        result = pin_manager.test_external_api()
+        
+        if result.get('status') == 'success':
+            flash(f'✅ API Externa: {result.get("message")}', 'success')
+        else:
+            flash(f'❌ API Externa: {result.get("message")}', 'error')
+    except Exception as e:
+        flash(f'Error al probar API externa: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/request_external_pin', methods=['POST'])
+def admin_request_external_pin():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    monto_id = request.form.get('monto_id')
+    
+    if not monto_id:
+        flash('Por favor selecciona un monto válido', 'error')
+        return redirect('/admin')
+    
+    try:
+        monto_id = int(monto_id)
+        if monto_id < 1 or monto_id > 9:
+            flash('Monto ID debe estar entre 1 y 9', 'error')
+            return redirect('/admin')
+        
+        inefable_client = get_inefable_client()
+        result = inefable_client.request_pin(monto_id)
+        
+        if result.get('status') == 'success':
+            pin_code = result.get('pin_code')
+            
+            # Agregar el pin obtenido al stock local
+            pin_manager = create_pin_manager(DATABASE)
+            success, message = pin_manager.add_local_pin(monto_id, pin_code, source='inefable_api_manual')
+            
+            if success:
+                # Obtener información del paquete
+                packages_info = get_package_info_with_prices()
+                package_info = packages_info.get(monto_id, {})
+                paquete_nombre = package_info.get('nombre', f'Paquete {monto_id}')
+                
+                flash(f'✅ Pin obtenido de API externa y agregado al stock: {paquete_nombre}', 'success')
+            else:
+                flash(f'Pin obtenido pero error al agregar al stock: {message}', 'warning')
+        else:
+            flash(f'❌ Error al obtener pin de API externa: {result.get("message", "Error desconocido")}', 'error')
+            
+    except ValueError:
+        flash('Monto ID debe ser un número válido', 'error')
+    except Exception as e:
+        flash(f'Error inesperado: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/get_api_status', methods=['GET'])
+def admin_get_api_status():
+    if not session.get('is_admin'):
+        return {'status': 'error', 'message': 'Acceso denegado'}
+    
+    try:
+        pin_manager = create_pin_manager(DATABASE)
+        status = pin_manager.get_stock_status()
+        return status
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
 
 @app.route('/logout')
 def logout():

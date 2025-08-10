@@ -6,6 +6,9 @@ pytz==2023.3
 # Para notificaciones por correo
 Flask-Mail==0.9.1
 
+# Para conexiones HTTP con API externa
+requests==2.31.0
+
 # Utilidades (opcional)
 python-dotenv==1.0.0
 
