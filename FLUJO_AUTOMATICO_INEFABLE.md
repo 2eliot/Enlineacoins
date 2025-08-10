@@ -10,11 +10,11 @@ Se ha implementado un sistema híbrido que permite obtener pines automáticament
 - **URL Base**: `https://inefableshop.net/conexion_api/api.php`
 - **Usuario**: `inefableshop`
 - **Contraseña**: `321Naruto%`
-- **Tipo de Recarga**: `recargaPinFreefire`
+- **Tipo de Recarga**: `recargaPinFreefirebs`
 
 ### Parámetros de la API
 ```
-https://inefableshop.net/conexion_api/api.php?action=recarga&usuario=inefableshop&clave=321Naruto%&tipo=recargaPinFreefire&monto=1&numero=0
+https://inefableshop.net/conexion_api/api.php?action=recarga&usuario=inefableshop&clave=321Naruto%&tipo=recargaPinFreefirebs&monto=1&numero=0
 ```
 
 ## 🎯 Flujo de Usuario (Automático)
