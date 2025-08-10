@@ -170,44 +170,86 @@ class InefableAPIClient:
         try:
             # Si la respuesta es texto plano (raw_response)
             if response.get('raw_response'):
-                response_text = response.get('data', '').lower()
+                response_text = response.get('data', '')
+                response_text_lower = response_text.lower()
                 
-                # Primero verificar si hay indicadores de falta de stock
+                logger.info(f"Procesando respuesta de API externa para monto_id {monto_id}")
+                logger.info(f"Respuesta recibida: {response_text[:200]}...")
+                
+                # Verificar si la respuesta contiene JSON con error
+                try:
+                    # Intentar extraer JSON de la respuesta (puede tener HTML antes)
+                    import re
+                    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(0)
+                        json_data = json.loads(json_str)
+                        
+                        # Verificar si el JSON indica error
+                        if json_data.get('alerta') == 'red' or 'error' in json_data.get('mensaje', '').lower():
+                            logger.error(f"API externa devolvió error JSON: {json_data.get('mensaje', 'Error desconocido')}")
+                            return {
+                                'status': 'error',
+                                'message': f'Sin stock en API externa: {json_data.get("mensaje", "Error desconocido")}',
+                                'raw_response': response_text,
+                                'error_type': 'no_stock'
+                            }
+                        
+                        # Si hay pin en el JSON
+                        pin_code = json_data.get('pin')
+                        if pin_code and pin_code != 'null' and pin_code is not None:
+                            logger.info(f"Pin encontrado en JSON: {pin_code[:4]}****")
+                            return {
+                                'status': 'success',
+                                'pin_code': pin_code,
+                                'monto_id': monto_id,
+                                'source': 'inefable_api',
+                                'timestamp': datetime.now().isoformat(),
+                                'raw_response': response_text
+                            }
+                except (json.JSONDecodeError, AttributeError):
+                    logger.info("No se encontró JSON válido en la respuesta")
+                
+                # Verificar indicadores de falta de stock en texto plano
                 no_stock_keywords = [
                     'sin stock', 'no stock', 'agotado', 'no disponible',
                     'out of stock', 'unavailable', 'insufficient',
                     'no hay', 'temporalmente no disponible', 'error',
                     'no se pudo', 'fallido', 'failed', 'saldo insuficiente',
-                    'balance insuficiente', 'no funds', 'insufficient funds'
+                    'balance insuficiente', 'no funds', 'insufficient funds',
+                    'alerta":"red"', 'error desconocido', 'respuesta inválida'
                 ]
                 
                 # Si hay indicadores de falta de stock, devolver error
                 for keyword in no_stock_keywords:
-                    if keyword in response_text:
+                    if keyword in response_text_lower:
+                        logger.error(f"Detectado indicador de falta de stock: {keyword}")
                         return {
                             'status': 'error',
                             'message': f'Sin stock en API externa: {keyword}',
-                            'raw_response': response.get('data', ''),
+                            'raw_response': response_text,
                             'error_type': 'no_stock'
                         }
                 
-                # Buscar patrones comunes de pines en la respuesta
-                pin_code = self._extract_pin_from_text(response.get('data', ''))
+                # Buscar patrones comunes de pines en la respuesta (solo si no hay errores)
+                pin_code = self._extract_pin_from_text(response_text)
                 
                 if pin_code:
+                    logger.info(f"Pin extraído de texto: {pin_code[:4]}****")
                     return {
                         'status': 'success',
                         'pin_code': pin_code,
                         'monto_id': monto_id,
                         'source': 'inefable_api',
                         'timestamp': datetime.now().isoformat(),
-                        'raw_response': response.get('data', '')
+                        'raw_response': response_text
                     }
                 else:
+                    logger.error("No se pudo extraer pin válido de la respuesta")
                     return {
                         'status': 'error',
                         'message': 'No se pudo extraer el pin de la respuesta - posible falta de stock',
-                        'raw_response': response.get('data', ''),
+                        'raw_response': response_text,
                         'error_type': 'no_pin_found'
                     }
             
