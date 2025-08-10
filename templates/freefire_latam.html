@@ -171,21 +171,19 @@
         const selectedOption = montoSelect.options[montoSelect.selectedIndex];
         const stock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
         
+        // Siempre habilitar el selector de cantidad (tenemos API externa como respaldo)
+        cantidadSelect.disabled = false;
+        cantidadSelect.style.backgroundColor = '#AAF0F4';
+        cantidadSelect.value = '1';
+        
+        // Mostrar información del stock pero mantener botón habilitado
         if (stock > 0) {
-          // Habilitar el selector de cantidad y ponerlo en 1 por defecto
-          cantidadSelect.disabled = false;
-          cantidadSelect.style.backgroundColor = '#AAF0F4';
-          cantidadSelect.value = '1';
           submitBtn.textContent = 'Validar compra';
         } else {
-          // Deshabilitar el selector de cantidad
-          cantidadSelect.disabled = true;
-          cantidadSelect.style.backgroundColor = '#f8f9fa';
-          cantidadSelect.value = '';
-          submitBtn.textContent = 'Sin stock disponible';
+          submitBtn.textContent = 'Validar compra (API externa)';
         }
       } else {
-        // Deshabilitar el selector de cantidad
+        // Deshabilitar el selector de cantidad solo si no hay paquete seleccionado
         cantidadSelect.disabled = true;
         cantidadSelect.style.backgroundColor = '#f8f9fa';
         cantidadSelect.value = '';
