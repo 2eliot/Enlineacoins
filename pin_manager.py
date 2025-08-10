@@ -1,20 +1,16 @@
 import sqlite3
 import logging
 from datetime import datetime
-import random
-import string
-from inefable_api_client import get_inefable_client
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PinManager:
-    """Gestor de pines que maneja stock local y API externa como respaldo"""
+    """Gestor de pines que maneja solo stock local"""
     
     def __init__(self, database_path):
         self.database_path = database_path
-        self.inefable_client = get_inefable_client()
         
     def get_db_connection(self):
         """Obtiene una conexión a la base de datos"""
@@ -86,7 +82,7 @@ class PinManager:
             conn.commit()
             conn.close()
             
-            logger.info(f"Pin agregado al stock local - Monto: {monto_id}, Source: {source}")
+            logger.info(f"Pin agregado al stock local - Monto: {monto_id}")
             return True, "Pin agregado exitosamente"
             
         except Exception as e:
@@ -95,39 +91,31 @@ class PinManager:
             logger.error(f"Error al agregar pin local: {str(e)}")
             return False, f"Error al agregar pin: {str(e)}"
     
-    def request_pin_with_fallback(self, monto_id, use_external_api=True):
+    def request_pin(self, monto_id):
         """
-        Solicita un pin con sistema de respaldo:
-        1. Primero intenta obtener del stock local
-        2. Si no hay stock local y use_external_api=True, usa la API externa
+        Solicita un pin del stock local únicamente
         
         Args:
             monto_id (int): ID del monto (1-9)
-            use_external_api (bool): Si usar API externa como respaldo
             
         Returns:
             dict: Resultado de la operación
         """
         try:
-            logger.info(f"=== INICIANDO SOLICITUD DE PIN ===")
-            logger.info(f"Monto ID: {monto_id}")
-            logger.info(f"Usar API externa: {use_external_api}")
+            logger.info(f"Solicitando pin para monto_id {monto_id}")
             
-            # 1. Intentar obtener pin del stock local
+            # Verificar stock local
             local_stock = self.get_local_stock(monto_id)
-            logger.info(f"Stock local verificado para monto {monto_id}: {local_stock} pines")
+            logger.info(f"Stock local para monto {monto_id}: {local_stock}")
             
             if local_stock > 0:
                 # Hay stock local disponible
-                logger.info(f"HAY STOCK LOCAL DISPONIBLE ({local_stock} pines) - USANDO STOCK LOCAL")
                 local_pin = self.get_local_pin(monto_id)
-                
                 if local_pin:
-                    logger.info(f"Pin local obtenido: ID={local_pin['id']}, Código={local_pin['pin_codigo'][:4]}****")
                     # Eliminar pin del stock local
                     self.remove_local_pin(local_pin['id'])
                     
-                    logger.info(f"✅ PIN OBTENIDO DEL STOCK LOCAL - Monto: {monto_id}")
+                    logger.info(f"Pin obtenido del stock local - Monto: {monto_id}")
                     return {
                         'status': 'success',
                         'pin_code': local_pin['pin_codigo'],
@@ -136,78 +124,15 @@ class PinManager:
                         'timestamp': datetime.now().isoformat(),
                         'stock_remaining': local_stock - 1
                     }
-                else:
-                    logger.error(f"ERROR: Stock local indica {local_stock} pero no se pudo obtener pin")
-            else:
-                logger.info(f"NO HAY STOCK LOCAL (0 pines) - Verificando API externa")
             
-            # 2. Si no hay stock local, usar API externa como respaldo
-            if use_external_api:
-                logger.info(f"🌐 CONSULTANDO API EXTERNA - Stock local agotado para monto {monto_id}")
-                
-                # Verificar si la API externa está disponible
-                if not self.inefable_client.is_available():
-                    return {
-                        'status': 'error',
-                        'message': 'Stock local agotado y API externa no disponible',
-                        'error_type': 'no_stock_no_api',
-                        'local_stock': local_stock
-                    }
-                
-                # Solicitar pin a la API externa
-                external_result = self.inefable_client.request_pin(monto_id)
-                
-                if external_result.get('status') == 'success':
-                    logger.info(f"Pin obtenido de API externa - Monto: {monto_id}")
-                    
-                    pin_code = external_result.get('pin_code')
-                    if pin_code:
-                        return {
-                            'status': 'success',
-                            'pin_code': pin_code,
-                            'monto_id': monto_id,
-                            'source': 'inefable_api',
-                            'timestamp': datetime.now().isoformat(),
-                            'local_stock': local_stock,
-                            'external_response': external_result
-                        }
-                    else:
-                        return {
-                            'status': 'error',
-                            'message': 'API externa no devolvió un pin válido',
-                            'error_type': 'no_valid_pin',
-                            'local_stock': local_stock,
-                            'external_error': external_result
-                        }
-                else:
-                    # Verificar si es específicamente un error de falta de stock
-                    error_type = external_result.get('error_type', 'unknown')
-                    if error_type == 'no_stock':
-                        logger.error(f"Sin stock en API externa para monto {monto_id}")
-                        return {
-                            'status': 'error',
-                            'message': 'Sin stock disponible en ninguna fuente',
-                            'error_type': 'no_stock_anywhere',
-                            'local_stock': local_stock,
-                            'external_error': external_result
-                        }
-                    else:
-                        logger.error(f"Error en API externa: {external_result.get('message', 'Error desconocido')}")
-                        return {
-                            'status': 'error',
-                            'message': f"Stock local agotado y error en API externa: {external_result.get('message', 'Error desconocido')}",
-                            'error_type': 'external_api_error',
-                            'local_stock': local_stock,
-                            'external_error': external_result
-                        }
-            else:
-                # No usar API externa
-                return {
-                    'status': 'error',
-                    'message': 'Stock local agotado',
-                    'error_type': 'no_local_stock',
-                    'local_stock': local_stock
-                }
+            # No hay stock local
+            logger.info(f"Sin stock local para monto {monto_id}")
+            return {
+                'status': 'error',
+                'message': 'Sin stock disponible',
+                'error_type': 'no_stock',
+                'local_stock': local_stock
+            }
                 
         except Exception as e:
             logger.error(f"Error inesperado al solicitar pin: {str(e)}")
@@ -217,14 +142,13 @@ class PinManager:
                 'error_type': 'unexpected'
             }
     
-    def request_multiple_pins(self, monto_id, cantidad, use_external_api=True):
+    def request_multiple_pins(self, monto_id, cantidad):
         """
-        Solicita múltiples pines con sistema de respaldo
+        Solicita múltiples pines del stock local únicamente
         
         Args:
             monto_id (int): ID del monto (1-9)
             cantidad (int): Cantidad de pines solicitados
-            use_external_api (bool): Si usar API externa como respaldo
             
         Returns:
             dict: Resultado de la operación
@@ -239,15 +163,21 @@ class PinManager:
                     'error_type': 'validation'
                 }
             
-            pines_obtenidos = []
             local_stock = self.get_local_stock(monto_id)
-            pines_desde_local = min(cantidad, local_stock)
-            pines_desde_externa = cantidad - pines_desde_local
             
-            logger.info(f"Plan: {pines_desde_local} del stock local, {pines_desde_externa} de API externa")
+            if local_stock < cantidad:
+                return {
+                    'status': 'error',
+                    'message': f'Stock insuficiente. Disponible: {local_stock}, Solicitado: {cantidad}',
+                    'error_type': 'insufficient_stock',
+                    'local_stock': local_stock,
+                    'cantidad_solicitada': cantidad
+                }
             
-            # 1. Obtener pines del stock local
-            for i in range(pines_desde_local):
+            pines_obtenidos = []
+            
+            # Obtener pines del stock local
+            for i in range(cantidad):
                 local_pin = self.get_local_pin(monto_id)
                 if local_pin:
                     self.remove_local_pin(local_pin['id'])
@@ -259,26 +189,6 @@ class PinManager:
                     logger.warning(f"Pin local esperado no encontrado en iteración {i+1}")
                     break
             
-            # 2. Obtener pines restantes de la API externa
-            if pines_desde_externa > 0 and use_external_api:
-                if not self.inefable_client.is_available():
-                    logger.warning("API externa no disponible para pines restantes")
-                else:
-                    for i in range(pines_desde_externa):
-                        external_result = self.inefable_client.request_pin(monto_id)
-                        
-                        if external_result.get('status') == 'success':
-                            pin_code = external_result.get('pin_code')
-                            if pin_code:
-                                pines_obtenidos.append({
-                                    'pin_code': pin_code,
-                                    'source': 'inefable_api'
-                                })
-                                logger.info(f"Pin {i+1} obtenido de API externa: {pin_code[:4]}****")
-                        else:
-                            logger.error(f"Error en API externa para pin {i+1}: {external_result.get('message')}")
-                            break
-            
             # Resultado final
             if len(pines_obtenidos) == cantidad:
                 return {
@@ -287,27 +197,16 @@ class PinManager:
                     'cantidad_solicitada': cantidad,
                     'cantidad_obtenida': len(pines_obtenidos),
                     'monto_id': monto_id,
-                    'timestamp': datetime.now().isoformat(),
-                    'sources_used': list(set([pin['source'] for pin in pines_obtenidos]))
-                }
-            elif len(pines_obtenidos) > 0:
-                return {
-                    'status': 'partial_success',
-                    'pins': pines_obtenidos,
-                    'cantidad_solicitada': cantidad,
-                    'cantidad_obtenida': len(pines_obtenidos),
-                    'monto_id': monto_id,
-                    'timestamp': datetime.now().isoformat(),
-                    'message': f'Solo se pudieron obtener {len(pines_obtenidos)} de {cantidad} pines solicitados',
-                    'sources_used': list(set([pin['source'] for pin in pines_obtenidos]))
+                    'timestamp': datetime.now().isoformat()
                 }
             else:
                 return {
                     'status': 'error',
-                    'message': 'No se pudieron obtener pines',
-                    'error_type': 'no_pins_available',
+                    'message': f'Solo se pudieron obtener {len(pines_obtenidos)} de {cantidad} pines',
+                    'error_type': 'partial_stock',
                     'cantidad_solicitada': cantidad,
-                    'local_stock': local_stock
+                    'cantidad_obtenida': len(pines_obtenidos),
+                    'pins': pines_obtenidos
                 }
                 
         except Exception as e:
@@ -317,113 +216,6 @@ class PinManager:
                 'message': f'Error inesperado: {str(e)}',
                 'error_type': 'unexpected'
             }
-    
-    def get_stock_status(self):
-        """Obtiene el estado completo del stock (local + API externa)"""
-        try:
-            local_stock = self.get_local_stock()
-            api_available = self.inefable_client.is_available()
-            
-            # Intentar obtener información de saldo de la API externa
-            api_balance = None
-            if api_available:
-                balance_result = self.inefable_client.get_balance()
-                if balance_result.get('status') == 'success':
-                    api_balance = balance_result
-            
-            return {
-                'status': 'success',
-                'local_stock': local_stock,
-                'total_local_pins': sum(local_stock.values()),
-                'external_api': {
-                    'available': api_available,
-                    'balance_info': api_balance
-                },
-                'timestamp': datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error al obtener estado del stock: {str(e)}")
-            return {
-                'status': 'error',
-                'message': f'Error al obtener estado: {str(e)}',
-                'error_type': 'status_error'
-            }
-    
-    def test_external_api(self):
-        """Prueba la conexión con la API externa"""
-        try:
-            success, message = self.inefable_client.test_connection()
-            return {
-                'status': 'success' if success else 'error',
-                'message': message,
-                'timestamp': datetime.now().isoformat()
-            }
-        except Exception as e:
-            return {
-                'status': 'error',
-                'message': f'Error al probar API externa: {str(e)}',
-                'error_type': 'test_error'
-            }
-
-    def check_combined_stock(self, monto_id):
-        """
-        Verifica el stock combinado (local + API externa) para un monto específico
-        
-        Args:
-            monto_id (int): ID del monto (1-9)
-            
-        Returns:
-            dict: Estado del stock combinado
-        """
-        try:
-            # Stock local
-            local_stock = self.get_local_stock(monto_id)
-            
-            # Verificar API externa
-            external_available = False
-            external_message = "API externa no disponible"
-            
-            if self.inefable_client.is_available():
-                # Verificar stock específico en API externa
-                stock_check = self.inefable_client.check_stock_availability(monto_id)
-                external_available = stock_check.get('available', False)
-                external_message = stock_check.get('message', 'Estado desconocido')
-            
-            # Determinar disponibilidad total
-            total_available = local_stock > 0 or external_available
-            
-            return {
-                'status': 'success',
-                'monto_id': monto_id,
-                'local_stock': local_stock,
-                'external_available': external_available,
-                'external_message': external_message,
-                'total_available': total_available,
-                'message': self._get_stock_message(local_stock, external_available),
-                'timestamp': datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error al verificar stock combinado para monto {monto_id}: {str(e)}")
-            return {
-                'status': 'error',
-                'monto_id': monto_id,
-                'total_available': False,
-                'message': f'Error al verificar stock: {str(e)}',
-                'error_type': 'check_error'
-            }
-    
-    def _get_stock_message(self, local_stock, external_available):
-        """Genera mensaje descriptivo del estado del stock"""
-        if local_stock > 0 and external_available:
-            return f"Stock disponible ({local_stock} local + API externa)"
-        elif local_stock > 0:
-            return f"Stock local disponible ({local_stock})"
-        elif external_available:
-            return "Disponible vía API externa"
-        else:
-            return "Sin stock disponible"
 
 def create_pin_manager(database_path):
     """Crea una instancia del gestor de pines"""

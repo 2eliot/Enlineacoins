@@ -9,7 +9,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 import threading
 from pin_manager import create_pin_manager
-from inefable_api_client import get_inefable_client
 
 app = Flask(__name__)
 
@@ -1287,44 +1286,31 @@ def validar_freefire_latam():
         flash(f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
         return redirect('/juego/freefire_latam')
     
-    # Usar el nuevo sistema de gestión de pines con respaldo de API externa
+    # Usar solo stock local (sin API externa)
     pin_manager = create_pin_manager(DATABASE)
     
     try:
-        # Solicitar pines usando el gestor con respaldo de API externa
+        # Solicitar pines usando solo stock local
         if cantidad == 1:
             # Para un solo pin
-            result = pin_manager.request_pin_with_fallback(monto_id, use_external_api=True)
+            result = pin_manager.request_pin(monto_id)
             
             if result.get('status') == 'success':
                 pines_codigos = [result.get('pin_code')]
-                sources_used = [result.get('source')]
+                sources_used = ['local_stock']
             else:
-                # Verificar si es específicamente un error de falta de stock
-                error_type = result.get('error_type', 'unknown')
-                if error_type in ['no_stock_anywhere', 'no_stock', 'no_pin_found']:
-                    flash('Sin stock disponible para este paquete. Intente más tarde.', 'error')
-                else:
-                    flash(f'Error al obtener pin: {result.get("message", "Error desconocido")}', 'error')
+                flash('Sin stock disponible para este paquete.', 'error')
                 return redirect('/juego/freefire_latam')
         else:
             # Para múltiples pines
-            result = pin_manager.request_multiple_pins(monto_id, cantidad, use_external_api=True)
+            result = pin_manager.request_multiple_pins(monto_id, cantidad)
             
-            if result.get('status') in ['success', 'partial_success']:
+            if result.get('status') == 'success':
                 pines_data = result.get('pins', [])
                 pines_codigos = [pin['pin_code'] for pin in pines_data]
-                sources_used = list(set([pin['source'] for pin in pines_data]))
-                
-                if result.get('status') == 'partial_success':
-                    cantidad_obtenida = len(pines_codigos)
-                    flash(f'Solo se pudieron obtener {cantidad_obtenida} de {cantidad} pines solicitados', 'warning')
-                    # Ajustar precio total según pines obtenidos
-                    precio_total = precio_unitario * cantidad_obtenida
-                    cantidad = cantidad_obtenida
-                    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}"
+                sources_used = ['local_stock']
             else:
-                flash(f'Error al obtener pines: {result.get("message", "Error desconocido")}', 'error')
+                flash(f'Stock insuficiente. {result.get("message", "Error desconocido")}', 'error')
                 return redirect('/juego/freefire_latam')
         
         # Verificar que se obtuvieron pines
@@ -1433,15 +1419,15 @@ def freefire_latam():
     pin_manager = create_pin_manager(DATABASE)
     local_stock = pin_manager.get_local_stock()
     
-    # Preparar información de stock SOLO local (sin consultas a API externa)
+    # Preparar información de stock simple (verde ✅ o X ❌)
     stock = {}
     for monto_id in range(1, 10):
         local_count = local_stock.get(monto_id, 0)
         stock[monto_id] = {
             'local': local_count,
-            'external_available': True,  # Asumir que API externa está disponible (se verifica solo al comprar)
-            'total_available': True,  # Siempre mostrar como disponible (API externa como respaldo)
-            'message': f'Stock local: {local_count}' if local_count > 0 else 'Disponible vía API externa'
+            'available': local_count > 0,  # True si hay stock, False si no hay
+            'indicator': '✅' if local_count > 0 else '❌',
+            'message': f'{local_count} disponibles' if local_count > 0 else 'Sin stock'
         }
     
     # Obtener precios dinámicos
