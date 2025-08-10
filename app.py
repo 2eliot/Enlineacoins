@@ -1300,7 +1300,12 @@ def validar_freefire_latam():
                 pines_codigos = [result.get('pin_code')]
                 sources_used = [result.get('source')]
             else:
-                flash(f'Error al obtener pin: {result.get("message", "Error desconocido")}', 'error')
+                # Verificar si es específicamente un error de falta de stock
+                error_type = result.get('error_type', 'unknown')
+                if error_type in ['no_stock_anywhere', 'no_stock', 'no_pin_found']:
+                    flash('Sin stock disponible para este paquete. Intente más tarde.', 'error')
+                else:
+                    flash(f'Error al obtener pin: {result.get("message", "Error desconocido")}', 'error')
                 return redirect('/juego/freefire_latam')
         else:
             # Para múltiples pines

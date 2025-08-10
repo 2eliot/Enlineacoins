@@ -151,30 +151,46 @@ class PinManager:
                 if external_result.get('status') == 'success':
                     logger.info(f"Pin obtenido de API externa - Monto: {monto_id}")
                     
-                    # Opcionalmente, agregar el pin obtenido al stock local para futuras consultas
                     pin_code = external_result.get('pin_code')
                     if pin_code:
-                        # Agregar al stock local con marca de origen externo
-                        self.add_local_pin(monto_id, pin_code, source='inefable_api')
-                    
-                    return {
-                        'status': 'success',
-                        'pin_code': pin_code,
-                        'monto_id': monto_id,
-                        'source': 'inefable_api',
-                        'timestamp': datetime.now().isoformat(),
-                        'local_stock': local_stock,
-                        'external_response': external_result
-                    }
+                        return {
+                            'status': 'success',
+                            'pin_code': pin_code,
+                            'monto_id': monto_id,
+                            'source': 'inefable_api',
+                            'timestamp': datetime.now().isoformat(),
+                            'local_stock': local_stock,
+                            'external_response': external_result
+                        }
+                    else:
+                        return {
+                            'status': 'error',
+                            'message': 'API externa no devolvió un pin válido',
+                            'error_type': 'no_valid_pin',
+                            'local_stock': local_stock,
+                            'external_error': external_result
+                        }
                 else:
-                    logger.error(f"Error en API externa: {external_result.get('message', 'Error desconocido')}")
-                    return {
-                        'status': 'error',
-                        'message': f"Stock local agotado y error en API externa: {external_result.get('message', 'Error desconocido')}",
-                        'error_type': 'external_api_error',
-                        'local_stock': local_stock,
-                        'external_error': external_result
-                    }
+                    # Verificar si es específicamente un error de falta de stock
+                    error_type = external_result.get('error_type', 'unknown')
+                    if error_type == 'no_stock':
+                        logger.error(f"Sin stock en API externa para monto {monto_id}")
+                        return {
+                            'status': 'error',
+                            'message': 'Sin stock disponible en ninguna fuente',
+                            'error_type': 'no_stock_anywhere',
+                            'local_stock': local_stock,
+                            'external_error': external_result
+                        }
+                    else:
+                        logger.error(f"Error en API externa: {external_result.get('message', 'Error desconocido')}")
+                        return {
+                            'status': 'error',
+                            'message': f"Stock local agotado y error en API externa: {external_result.get('message', 'Error desconocido')}",
+                            'error_type': 'external_api_error',
+                            'local_stock': local_stock,
+                            'external_error': external_result
+                        }
             else:
                 # No usar API externa
                 return {

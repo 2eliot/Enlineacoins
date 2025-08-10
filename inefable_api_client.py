@@ -170,10 +170,29 @@ class InefableAPIClient:
         try:
             # Si la respuesta es texto plano (raw_response)
             if response.get('raw_response'):
-                response_text = response.get('data', '')
+                response_text = response.get('data', '').lower()
+                
+                # Primero verificar si hay indicadores de falta de stock
+                no_stock_keywords = [
+                    'sin stock', 'no stock', 'agotado', 'no disponible',
+                    'out of stock', 'unavailable', 'insufficient',
+                    'no hay', 'temporalmente no disponible', 'error',
+                    'no se pudo', 'fallido', 'failed', 'saldo insuficiente',
+                    'balance insuficiente', 'no funds', 'insufficient funds'
+                ]
+                
+                # Si hay indicadores de falta de stock, devolver error
+                for keyword in no_stock_keywords:
+                    if keyword in response_text:
+                        return {
+                            'status': 'error',
+                            'message': f'Sin stock en API externa: {keyword}',
+                            'raw_response': response.get('data', ''),
+                            'error_type': 'no_stock'
+                        }
                 
                 # Buscar patrones comunes de pines en la respuesta
-                pin_code = self._extract_pin_from_text(response_text)
+                pin_code = self._extract_pin_from_text(response.get('data', ''))
                 
                 if pin_code:
                     return {
@@ -182,19 +201,30 @@ class InefableAPIClient:
                         'monto_id': monto_id,
                         'source': 'inefable_api',
                         'timestamp': datetime.now().isoformat(),
-                        'raw_response': response_text
+                        'raw_response': response.get('data', '')
                     }
                 else:
                     return {
                         'status': 'error',
-                        'message': 'No se pudo extraer el pin de la respuesta',
-                        'raw_response': response_text,
-                        'error_type': 'parse_error'
+                        'message': 'No se pudo extraer el pin de la respuesta - posible falta de stock',
+                        'raw_response': response.get('data', ''),
+                        'error_type': 'no_pin_found'
                     }
             
             # Si la respuesta es JSON estructurado
             elif isinstance(response.get('data'), dict):
-                pin_code = response['data'].get('pin') or response['data'].get('codigo') or response['data'].get('pin_code')
+                data = response['data']
+                
+                # Verificar si hay indicadores de error o falta de stock en JSON
+                if data.get('error') or data.get('status') == 'error':
+                    return {
+                        'status': 'error',
+                        'message': f'Error en API externa: {data.get("message", "Error desconocido")}',
+                        'api_response': data,
+                        'error_type': 'api_error'
+                    }
+                
+                pin_code = data.get('pin') or data.get('codigo') or data.get('pin_code')
                 
                 if pin_code:
                     return {
@@ -203,14 +233,14 @@ class InefableAPIClient:
                         'monto_id': monto_id,
                         'source': 'inefable_api',
                         'timestamp': datetime.now().isoformat(),
-                        'api_response': response['data']
+                        'api_response': data
                     }
                 else:
                     return {
                         'status': 'error',
-                        'message': 'Pin no encontrado en respuesta JSON',
-                        'api_response': response['data'],
-                        'error_type': 'parse_error'
+                        'message': 'Pin no encontrado en respuesta JSON - posible falta de stock',
+                        'api_response': data,
+                        'error_type': 'no_pin_in_json'
                     }
             
             else:
