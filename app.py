@@ -1429,18 +1429,19 @@ def freefire_latam():
             session['saldo'] = user['saldo']
         conn.close()
     
-    # Obtener stock combinado (local + API externa)
+    # Obtener solo stock local (no consultar API externa al cargar la página)
     pin_manager = create_pin_manager(DATABASE)
-    stock = {}
+    local_stock = pin_manager.get_local_stock()
     
-    # Verificar stock combinado para cada paquete
+    # Preparar información de stock solo local
+    stock = {}
     for monto_id in range(1, 10):
-        stock_check = pin_manager.check_combined_stock(monto_id)
+        local_count = local_stock.get(monto_id, 0)
         stock[monto_id] = {
-            'local': stock_check.get('local_stock', 0),
-            'external_available': stock_check.get('external_available', False),
-            'total_available': stock_check.get('total_available', False),
-            'message': stock_check.get('message', 'Sin información')
+            'local': local_count,
+            'external_available': True,  # Asumir que API externa está disponible (se verifica solo al comprar)
+            'total_available': True,  # Siempre mostrar como disponible (API externa como respaldo)
+            'message': f'Stock local: {local_count}' if local_count > 0 else 'Disponible vía API externa'
         }
     
     # Obtener precios dinámicos
