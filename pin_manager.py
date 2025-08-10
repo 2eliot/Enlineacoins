@@ -109,20 +109,25 @@ class PinManager:
             dict: Resultado de la operación
         """
         try:
-            logger.info(f"Solicitando pin para monto_id {monto_id}")
+            logger.info(f"=== INICIANDO SOLICITUD DE PIN ===")
+            logger.info(f"Monto ID: {monto_id}")
+            logger.info(f"Usar API externa: {use_external_api}")
             
             # 1. Intentar obtener pin del stock local
             local_stock = self.get_local_stock(monto_id)
-            logger.info(f"Stock local para monto {monto_id}: {local_stock}")
+            logger.info(f"Stock local verificado para monto {monto_id}: {local_stock} pines")
             
             if local_stock > 0:
                 # Hay stock local disponible
+                logger.info(f"HAY STOCK LOCAL DISPONIBLE ({local_stock} pines) - USANDO STOCK LOCAL")
                 local_pin = self.get_local_pin(monto_id)
+                
                 if local_pin:
+                    logger.info(f"Pin local obtenido: ID={local_pin['id']}, Código={local_pin['pin_codigo'][:4]}****")
                     # Eliminar pin del stock local
                     self.remove_local_pin(local_pin['id'])
                     
-                    logger.info(f"Pin obtenido del stock local - Monto: {monto_id}")
+                    logger.info(f"✅ PIN OBTENIDO DEL STOCK LOCAL - Monto: {monto_id}")
                     return {
                         'status': 'success',
                         'pin_code': local_pin['pin_codigo'],
@@ -131,10 +136,14 @@ class PinManager:
                         'timestamp': datetime.now().isoformat(),
                         'stock_remaining': local_stock - 1
                     }
+                else:
+                    logger.error(f"ERROR: Stock local indica {local_stock} pero no se pudo obtener pin")
+            else:
+                logger.info(f"NO HAY STOCK LOCAL (0 pines) - Verificando API externa")
             
             # 2. Si no hay stock local, usar API externa como respaldo
             if use_external_api:
-                logger.info(f"Stock local agotado para monto {monto_id}, usando API externa")
+                logger.info(f"🌐 CONSULTANDO API EXTERNA - Stock local agotado para monto {monto_id}")
                 
                 # Verificar si la API externa está disponible
                 if not self.inefable_client.is_available():
@@ -265,9 +274,7 @@ class PinManager:
                                     'pin_code': pin_code,
                                     'source': 'inefable_api'
                                 })
-                                
-                                # Agregar al stock local para futuras consultas
-                                self.add_local_pin(monto_id, pin_code, source='inefable_api')
+                                logger.info(f"Pin {i+1} obtenido de API externa: {pin_code[:4]}****")
                         else:
                             logger.error(f"Error en API externa para pin {i+1}: {external_result.get('message')}")
                             break
