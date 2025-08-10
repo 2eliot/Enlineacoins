@@ -136,6 +136,26 @@ def init_db():
         )
     ''')
     
+    # Tabla de configuración de fuentes de pines por monto
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS configuracion_fuentes_pines (
+            monto_id INTEGER PRIMARY KEY,
+            fuente TEXT NOT NULL DEFAULT 'local',
+            activo BOOLEAN DEFAULT TRUE,
+            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+            CHECK (fuente IN ('local', 'api_externa'))
+        )
+    ''')
+    
+    # Insertar configuración por defecto si no existe (todos en local)
+    cursor.execute('SELECT COUNT(*) FROM configuracion_fuentes_pines')
+    if cursor.fetchone()[0] == 0:
+        configuracion_default = [(i, 'local', True) for i in range(1, 10)]
+        cursor.executemany('''
+            INSERT INTO configuracion_fuentes_pines (monto_id, fuente, activo)
+            VALUES (?, ?, ?)
+        ''', configuracion_default)
+    
     # Insertar precios por defecto si no existen
     cursor.execute('SELECT COUNT(*) FROM precios_paquetes')
     if cursor.fetchone()[0] == 0:
@@ -911,6 +931,30 @@ def get_all_bloodstriker_prices():
     conn.close()
     return prices
 
+# Funciones para configuración de fuentes de pines
+def get_pin_source_config():
+    """Obtiene la configuración de fuentes de pines por monto"""
+    conn = get_db_connection()
+    config = {}
+    for i in range(1, 10):
+        result = conn.execute('''
+            SELECT fuente FROM configuracion_fuentes_pines 
+            WHERE monto_id = ? AND activo = TRUE
+        ''', (i,)).fetchone()
+        config[i] = result['fuente'] if result else 'local'
+    conn.close()
+    return config
+
+def update_pin_source_config(monto_id, fuente):
+    """Actualiza la configuración de fuente para un monto específico"""
+    conn = get_db_connection()
+    conn.execute('''
+        INSERT OR REPLACE INTO configuracion_fuentes_pines (monto_id, fuente, activo, fecha_actualizacion)
+        VALUES (?, ?, TRUE, CURRENT_TIMESTAMP)
+    ''', (monto_id, fuente))
+    conn.commit()
+    conn.close()
+
 # Funciones de notificación por correo
 def send_email_async(app, msg):
     """Envía correo de forma asíncrona"""
@@ -1022,12 +1066,14 @@ def admin_panel():
     pin_stock = get_pin_stock()
     prices = get_all_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
+    pin_sources_config = get_pin_source_config()
     
     return render_template('admin.html', 
                          users=users, 
                          pin_stock=pin_stock, 
                          prices=prices, 
-                         bloodstriker_prices=bloodstriker_prices)
+                         bloodstriker_prices=bloodstriker_prices,
+                         pin_sources_config=pin_sources_config)
 
 @app.route('/admin/add_credit', methods=['POST'])
 def admin_add_credit():
@@ -1808,17 +1854,46 @@ def admin_request_external_pin():
     
     return redirect('/admin')
 
-@app.route('/admin/get_api_status', methods=['GET'])
-def admin_get_api_status():
+@app.route('/admin/toggle_pin_source', methods=['POST'])
+def admin_toggle_pin_source():
     if not session.get('is_admin'):
-        return {'status': 'error', 'message': 'Acceso denegado'}
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    monto_id = request.form.get('monto_id')
+    fuente = request.form.get('fuente')
+    
+    if not monto_id or not fuente:
+        flash('Datos inválidos para cambiar fuente', 'error')
+        return redirect('/admin')
     
     try:
-        pin_manager = create_pin_manager(DATABASE)
-        status = pin_manager.get_stock_status()
-        return status
+        monto_id = int(monto_id)
+        if monto_id < 1 or monto_id > 9:
+            flash('Monto ID debe estar entre 1 y 9', 'error')
+            return redirect('/admin')
+        
+        if fuente not in ['local', 'api_externa']:
+            flash('Fuente inválida. Debe ser "local" o "api_externa"', 'error')
+            return redirect('/admin')
+        
+        # Actualizar configuración
+        update_pin_source_config(monto_id, fuente)
+        
+        # Obtener información del paquete
+        packages_info = get_package_info_with_prices()
+        package_info = packages_info.get(monto_id, {})
+        paquete_nombre = package_info.get('nombre', f'Paquete {monto_id}')
+        
+        fuente_texto = 'Stock Local' if fuente == 'local' else 'API Externa'
+        flash(f'✅ Configuración actualizada: {paquete_nombre} → {fuente_texto}', 'success')
+        
+    except ValueError:
+        flash('Monto ID debe ser un número válido', 'error')
     except Exception as e:
-        return {'status': 'error', 'message': str(e)}
+        flash(f'Error al actualizar configuración: {str(e)}', 'error')
+    
+    return redirect('/admin')
 
 @app.route('/logout')
 def logout():

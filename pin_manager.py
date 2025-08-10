@@ -93,9 +93,19 @@ class PinManager:
             logger.error(f"Error al agregar pin local: {str(e)}")
             return False, f"Error al agregar pin: {str(e)}"
     
+    def get_pin_source_config(self, monto_id):
+        """Obtiene la configuración de fuente para un monto específico"""
+        conn = self.get_db_connection()
+        result = conn.execute('''
+            SELECT fuente FROM configuracion_fuentes_pines 
+            WHERE monto_id = ? AND activo = TRUE
+        ''', (monto_id,)).fetchone()
+        conn.close()
+        return result['fuente'] if result else 'local'
+    
     def request_pin(self, monto_id):
         """
-        Solicita un pin del stock local únicamente
+        Solicita un pin según la configuración del admin (local o API externa)
         
         Args:
             monto_id (int): ID del monto (1-9)
@@ -106,35 +116,82 @@ class PinManager:
         try:
             logger.info(f"Solicitando pin para monto_id {monto_id}")
             
-            # Verificar stock local
-            local_stock = self.get_local_stock(monto_id)
-            logger.info(f"Stock local para monto {monto_id}: {local_stock}")
+            # Obtener configuración de fuente para este monto
+            fuente_configurada = self.get_pin_source_config(monto_id)
+            logger.info(f"Fuente configurada para monto {monto_id}: {fuente_configurada}")
             
-            if local_stock > 0:
-                # Hay stock local disponible
-                local_pin = self.get_local_pin(monto_id)
-                if local_pin:
-                    # Eliminar pin del stock local
-                    self.remove_local_pin(local_pin['id'])
-                    
-                    logger.info(f"Pin obtenido del stock local - Monto: {monto_id}")
+            if fuente_configurada == 'api_externa':
+                # Configurado para usar API externa
+                logger.info(f"Intentando obtener pin de API externa para monto {monto_id}")
+                result = self.inefable_client.request_pin(monto_id)
+                
+                if result.get('status') == 'success':
+                    pin_code = result.get('pin_code')
+                    logger.info(f"Pin obtenido de API externa - Monto: {monto_id}")
                     return {
                         'status': 'success',
-                        'pin_code': local_pin['pin_codigo'],
+                        'pin_code': pin_code,
                         'monto_id': monto_id,
-                        'source': 'local_stock',
-                        'timestamp': datetime.now().isoformat(),
-                        'stock_remaining': local_stock - 1
+                        'source': 'api_externa',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                else:
+                    # Si falla API externa, intentar con stock local como respaldo
+                    logger.warning(f"API externa falló para monto {monto_id}, intentando stock local")
+                    local_stock = self.get_local_stock(monto_id)
+                    
+                    if local_stock > 0:
+                        local_pin = self.get_local_pin(monto_id)
+                        if local_pin:
+                            self.remove_local_pin(local_pin['id'])
+                            logger.info(f"Pin obtenido del stock local (respaldo) - Monto: {monto_id}")
+                            return {
+                                'status': 'success',
+                                'pin_code': local_pin['pin_codigo'],
+                                'monto_id': monto_id,
+                                'source': 'local_stock_fallback',
+                                'timestamp': datetime.now().isoformat(),
+                                'stock_remaining': local_stock - 1
+                            }
+                    
+                    # No hay stock en ningún lado
+                    return {
+                        'status': 'error',
+                        'message': f'Sin stock disponible. API externa: {result.get("message", "Error")}',
+                        'error_type': 'no_stock',
+                        'api_error': result.get('message')
                     }
             
-            # No hay stock local
-            logger.info(f"Sin stock local para monto {monto_id}")
-            return {
-                'status': 'error',
-                'message': 'Sin stock disponible',
-                'error_type': 'no_stock',
-                'local_stock': local_stock
-            }
+            else:
+                # Configurado para usar stock local
+                local_stock = self.get_local_stock(monto_id)
+                logger.info(f"Stock local para monto {monto_id}: {local_stock}")
+                
+                if local_stock > 0:
+                    # Hay stock local disponible
+                    local_pin = self.get_local_pin(monto_id)
+                    if local_pin:
+                        # Eliminar pin del stock local
+                        self.remove_local_pin(local_pin['id'])
+                        
+                        logger.info(f"Pin obtenido del stock local - Monto: {monto_id}")
+                        return {
+                            'status': 'success',
+                            'pin_code': local_pin['pin_codigo'],
+                            'monto_id': monto_id,
+                            'source': 'local_stock',
+                            'timestamp': datetime.now().isoformat(),
+                            'stock_remaining': local_stock - 1
+                        }
+                
+                # No hay stock local
+                logger.info(f"Sin stock local para monto {monto_id}")
+                return {
+                    'status': 'error',
+                    'message': 'Sin stock disponible',
+                    'error_type': 'no_stock',
+                    'local_stock': local_stock
+                }
                 
         except Exception as e:
             logger.error(f"Error inesperado al solicitar pin: {str(e)}")

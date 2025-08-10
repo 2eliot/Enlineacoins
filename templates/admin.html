@@ -170,19 +170,45 @@
       </div>
 
         <div class="pin-stock">
-        <h3>Stock de Pines</h3>
+        <h3>📦 Stock de Pines y Configuración de Fuentes</h3>
         <div class="stock-grid">
           {% for price in prices %}
           <div class="stock-item">
             <div class="stock-info">
               <span>{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</span>
-              <span class="stock-count">{{ pin_stock.get(price.id, 0) }}</span>
+              <span class="stock-count">{{ pin_stock.get(price.id, 0) }} pines</span>
             </div>
-            <div class="stock-actions">
+            
+            <!-- Toggle de configuración de fuente -->
+            <div class="source-config">
+              <label class="source-label">Fuente para usuarios:</label>
+              <div class="source-toggle-group">
+                <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
+                  <input type="hidden" name="monto_id" value="{{ price.id }}">
+                  <input type="hidden" name="fuente" value="local">
+                  <button type="submit" class="btn btn-source-toggle btn-local {% if pin_sources_config.get(price.id) == 'local' %}active{% endif %}" 
+                          title="Los usuarios obtendrán pines del stock local">
+                    📦 Stock Local {% if pin_sources_config.get(price.id) == 'local' %}✓{% endif %}
+                  </button>
+                </form>
+                
+                <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
+                  <input type="hidden" name="monto_id" value="{{ price.id }}">
+                  <input type="hidden" name="fuente" value="api_externa">
+                  <button type="submit" class="btn btn-source-toggle btn-api {% if pin_sources_config.get(price.id) == 'api_externa' %}active{% endif %}" 
+                          title="Los usuarios obtendrán pines directamente de la API externa">
+                    🌐 API Externa {% if pin_sources_config.get(price.id) == 'api_externa' %}✓{% endif %}
+                  </button>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Botón manual para admin -->
+            <div class="admin-actions">
               <form method="POST" action="/admin/request_external_pin" class="external-api-form">
                 <input type="hidden" name="monto_id" value="{{ price.id }}">
-                <button type="submit" class="btn btn-external-api" title="Obtener pin de API externa y agregarlo al stock local">
-                  🌐 API Externa
+                <button type="submit" class="btn btn-admin-manual" title="Obtener pin de API externa manualmente y agregarlo al stock local">
+                  ➕ Obtener de API (Manual)
                 </button>
               </form>
             </div>
