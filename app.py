@@ -1456,20 +1456,31 @@ def freefire_latam():
             session['saldo'] = user['saldo']
         conn.close()
     
-    # Obtener SOLO stock local (NO consultar API externa al cargar la página)
+    # Obtener stock local y configuración de fuentes
     pin_manager = create_pin_manager(DATABASE)
     local_stock = pin_manager.get_local_stock()
+    pin_sources_config = get_pin_source_config()
     
-    # Preparar información de stock simple (verde ✅ o X ❌)
+    # Preparar información de stock considerando la configuración de fuentes
     stock = {}
     for monto_id in range(1, 10):
         local_count = local_stock.get(monto_id, 0)
-        stock[monto_id] = {
-            'local': local_count,
-            'available': local_count > 0,  # True si hay stock, False si no hay
-            'indicator': '✅' if local_count > 0 else '❌',
-            'message': f'{local_count} disponibles' if local_count > 0 else 'Sin stock'
-        }
+        source_config = pin_sources_config.get(monto_id, 'local')
+        
+        # Si está configurado para API externa, siempre mostrar disponible
+        if source_config == 'api_externa':
+            stock[monto_id] = {
+                'local': local_count,
+                'external_available': True,  # Siempre True para API externa
+                'total_available': True,     # Siempre disponible cuando usa API externa
+            }
+        else:
+            # Si está configurado para stock local, mostrar según stock real
+            stock[monto_id] = {
+                'local': local_count,
+                'external_available': False,
+                'total_available': local_count > 0,  # Solo disponible si hay stock local
+            }
     
     # Obtener precios dinámicos
     prices = get_package_info_with_prices()

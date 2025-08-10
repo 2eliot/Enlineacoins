@@ -195,10 +195,30 @@ class InefableAPIClient:
                                 'error_type': 'no_stock'
                             }
                         
-                        # Si hay pin en el JSON
-                        pin_code = json_data.get('pin')
-                        if pin_code and pin_code != 'null' and pin_code is not None:
-                            logger.info(f"Pin encontrado en JSON: {pin_code[:4]}****")
+                        # Buscar pin en diferentes campos del JSON
+                        pin_code = None
+                        
+                        # 1. Buscar en campo 'pin' directo
+                        if json_data.get('pin') and json_data.get('pin') != 'null' and json_data.get('pin') is not None:
+                            pin_code = json_data.get('pin')
+                            logger.info(f"Pin encontrado en campo 'pin': {pin_code[:4]}****")
+                        
+                        # 2. Buscar en campo 'codigo'
+                        elif json_data.get('codigo') and json_data.get('codigo') != '':
+                            pin_code = json_data.get('codigo')
+                            logger.info(f"Pin encontrado en campo 'codigo': {pin_code[:4]}****")
+                        
+                        # 3. Buscar en campo 'mensaje' (HTML)
+                        elif json_data.get('mensaje'):
+                            mensaje = json_data.get('mensaje', '')
+                            # Extraer pin del HTML usando regex
+                            import re
+                            pin_match = re.search(r'<b>Pin:</b>\s*([A-Z0-9]{6,20})', mensaje, re.IGNORECASE)
+                            if pin_match:
+                                pin_code = pin_match.group(1).strip()
+                                logger.info(f"Pin encontrado en mensaje HTML: {pin_code[:4]}****")
+                        
+                        if pin_code:
                             return {
                                 'status': 'success',
                                 'pin_code': pin_code,

@@ -69,12 +69,18 @@
               {% set package = prices.get(package_id, {}) %}
               {% set stock_info = stock.get(package_id, {}) %}
               {% if package %}
+                {% set is_available = stock_info.get('total_available', false) %}
+                {% set local_stock = stock_info.get('local', 0) %}
+                {% set external_available = stock_info.get('external_available', false) %}
+                
                 <option id="monto_{{ package_id }}" value="{{ package_id }}" 
-                        data-stock="{{ stock_info.get('local', 0) }}" 
-                        data-external="{{ stock_info.get('external_available', false)|lower }}"
-                        data-available="{{ stock_info.get('total_available', false)|lower }}"
-                        data-price="{{ package.precio }}">
+                        data-stock="{{ local_stock }}" 
+                        data-external="{{ external_available|lower }}"
+                        data-available="{{ is_available|lower }}"
+                        data-price="{{ package.precio }}"
+                        {% if not is_available %}disabled{% endif %}>
                   {{ package.nombre }} / ${{ "%.2f"|format(package.precio) }}
+                  {% if is_available %}✅{% else %}❌{% endif %}
                 </option>
               {% endif %}
             {% endfor %}
