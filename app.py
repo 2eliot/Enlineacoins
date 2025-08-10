@@ -1813,46 +1813,6 @@ def admin_test_external_api():
     
     return redirect('/admin')
 
-@app.route('/admin/request_external_pin', methods=['POST'])
-def admin_request_external_pin():
-    if not session.get('is_admin'):
-        flash('Acceso denegado. Solo administradores.', 'error')
-        return redirect('/auth')
-    
-    monto_id = request.form.get('monto_id')
-    
-    if not monto_id:
-        flash('Por favor selecciona un monto válido', 'error')
-        return redirect('/admin')
-    
-    try:
-        monto_id = int(monto_id)
-        if monto_id < 1 or monto_id > 9:
-            flash('Monto ID debe estar entre 1 y 9', 'error')
-            return redirect('/admin')
-        
-        # Usar la nueva función del pin_manager
-        pin_manager = create_pin_manager(DATABASE)
-        result = pin_manager.request_pin_from_external_api(monto_id)
-        
-        if result.get('status') == 'success':
-            # Obtener información del paquete
-            packages_info = get_package_info_with_prices()
-            package_info = packages_info.get(monto_id, {})
-            paquete_nombre = package_info.get('nombre', f'Paquete {monto_id}')
-            
-            flash(f'✅ Pin obtenido de API externa y agregado al stock: {paquete_nombre}', 'success')
-        elif result.get('status') == 'warning':
-            flash(f'⚠️ {result.get("message")}', 'warning')
-        else:
-            flash(f'❌ {result.get("message", "Error desconocido")}', 'error')
-            
-    except ValueError:
-        flash('Monto ID debe ser un número válido', 'error')
-    except Exception as e:
-        flash(f'Error inesperado: {str(e)}', 'error')
-    
-    return redirect('/admin')
 
 @app.route('/admin/toggle_pin_source', methods=['POST'])
 def admin_toggle_pin_source():

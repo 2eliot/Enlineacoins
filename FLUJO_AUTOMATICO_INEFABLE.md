@@ -58,15 +58,7 @@ Cada paquete (monto 1-9) puede configurarse individualmente:
 - **Gris**: Fuente inactiva
 - **Un clic**: Cambia la configuración
 
-#### 2. **Botón Manual**
-```
-➕ Obtener de API (Manual)
-```
-- Obtiene un pin de la API Inefable
-- Lo agrega al stock local
-- Útil para probar la conexión
-
-#### 3. **Botón de Prueba**
+#### 2. **Botón de Prueba**
 ```
 🧪 Probar Conexión API
 ```

@@ -203,15 +203,6 @@
               </div>
             </div>
             
-            <!-- Botón manual para admin -->
-            <div class="admin-actions">
-              <form method="POST" action="/admin/request_external_pin" class="external-api-form">
-                <input type="hidden" name="monto_id" value="{{ price.id }}">
-                <button type="submit" class="btn btn-admin-manual" title="Obtener pin de API externa manualmente y agregarlo al stock local">
-                  ➕ Obtener de API (Manual)
-                </button>
-              </form>
-            </div>
           </div>
           {% endfor %}
         </div>

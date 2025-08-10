@@ -252,60 +252,6 @@ class PinManager:
                 'error_type': 'unexpected'
             }
     
-    def request_pin_from_external_api(self, monto_id):
-        """
-        Función SOLO para admin: Obtiene un pin de la API externa y lo agrega al stock local
-        
-        Args:
-            monto_id (int): ID del monto (1-9)
-            
-        Returns:
-            dict: Resultado de la operación
-        """
-        try:
-            logger.info(f"🌐 ADMIN: Solicitando pin de API externa para monto_id {monto_id}")
-            
-            # Solicitar pin de API externa
-            result = self.inefable_client.request_pin(monto_id)
-            
-            if result.get('status') == 'success':
-                pin_code = result.get('pin_code')
-                
-                # Agregar el pin obtenido al stock local
-                success, message = self.add_local_pin(monto_id, pin_code, source='inefable_api_admin')
-                
-                if success:
-                    logger.info(f"✅ Pin de API externa agregado al stock local - Monto: {monto_id}")
-                    return {
-                        'status': 'success',
-                        'message': f'Pin obtenido de API externa y agregado al stock local',
-                        'pin_code': pin_code,
-                        'monto_id': monto_id,
-                        'source': 'inefable_api_admin'
-                    }
-                else:
-                    logger.warning(f"Pin obtenido de API externa pero error al agregar al stock: {message}")
-                    return {
-                        'status': 'warning',
-                        'message': f'Pin obtenido pero no se pudo agregar al stock: {message}',
-                        'pin_code': pin_code
-                    }
-            else:
-                error_msg = result.get('message', 'Error desconocido')
-                logger.error(f"❌ Error en API externa para monto {monto_id}: {error_msg}")
-                return {
-                    'status': 'error',
-                    'message': f'Error en API externa: {error_msg}',
-                    'error_type': 'external_api_error'
-                }
-                
-        except Exception as e:
-            logger.error(f"Error inesperado al solicitar pin de API externa: {str(e)}")
-            return {
-                'status': 'error',
-                'message': f'Error inesperado: {str(e)}',
-                'error_type': 'unexpected'
-            }
     
     def test_external_api(self):
         """
