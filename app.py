@@ -1424,8 +1424,19 @@ def freefire_latam():
             session['saldo'] = user['saldo']
         conn.close()
     
-    # Obtener stock de pines
-    stock = get_pin_stock()
+    # Obtener stock combinado (local + API externa)
+    pin_manager = create_pin_manager(DATABASE)
+    stock = {}
+    
+    # Verificar stock combinado para cada paquete
+    for monto_id in range(1, 10):
+        stock_check = pin_manager.check_combined_stock(monto_id)
+        stock[monto_id] = {
+            'local': stock_check.get('local_stock', 0),
+            'external_available': stock_check.get('external_available', False),
+            'total_available': stock_check.get('total_available', False),
+            'message': stock_check.get('message', 'Sin información')
+        }
     
     # Obtener precios dinámicos
     prices = get_package_info_with_prices()

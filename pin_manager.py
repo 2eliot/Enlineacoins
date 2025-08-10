@@ -343,6 +343,65 @@ class PinManager:
                 'error_type': 'test_error'
             }
 
+    def check_combined_stock(self, monto_id):
+        """
+        Verifica el stock combinado (local + API externa) para un monto específico
+        
+        Args:
+            monto_id (int): ID del monto (1-9)
+            
+        Returns:
+            dict: Estado del stock combinado
+        """
+        try:
+            # Stock local
+            local_stock = self.get_local_stock(monto_id)
+            
+            # Verificar API externa
+            external_available = False
+            external_message = "API externa no disponible"
+            
+            if self.inefable_client.is_available():
+                # Verificar stock específico en API externa
+                stock_check = self.inefable_client.check_stock_availability(monto_id)
+                external_available = stock_check.get('available', False)
+                external_message = stock_check.get('message', 'Estado desconocido')
+            
+            # Determinar disponibilidad total
+            total_available = local_stock > 0 or external_available
+            
+            return {
+                'status': 'success',
+                'monto_id': monto_id,
+                'local_stock': local_stock,
+                'external_available': external_available,
+                'external_message': external_message,
+                'total_available': total_available,
+                'message': self._get_stock_message(local_stock, external_available),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al verificar stock combinado para monto {monto_id}: {str(e)}")
+            return {
+                'status': 'error',
+                'monto_id': monto_id,
+                'total_available': False,
+                'message': f'Error al verificar stock: {str(e)}',
+                'error_type': 'check_error'
+            }
+    
+    def _get_stock_message(self, local_stock, external_available):
+        """Genera mensaje descriptivo del estado del stock"""
+        if local_stock > 0 and external_available:
+            return f"Stock disponible ({local_stock} local + API externa)"
+        elif local_stock > 0:
+            return f"Stock local disponible ({local_stock})"
+        elif external_available:
+            return "Disponible vía API externa"
+        else:
+            return "Sin stock disponible"
+
 def create_pin_manager(database_path):
     """Crea una instancia del gestor de pines"""
     return PinManager(database_path)

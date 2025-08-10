@@ -285,6 +285,97 @@ class InefableAPIClient:
                 'error_type': 'balance_error'
             }
     
+    def check_stock_availability(self, monto_id):
+        """
+        Verifica si hay stock disponible para un monto específico en la API externa
+        
+        Args:
+            monto_id (int): ID del monto local (1-9)
+            
+        Returns:
+            dict: Estado del stock
+        """
+        try:
+            # Validar monto_id
+            if monto_id not in self.monto_mapping:
+                return {
+                    'status': 'error',
+                    'available': False,
+                    'message': f'Monto ID {monto_id} no válido'
+                }
+            
+            # Hacer una petición de prueba para verificar disponibilidad
+            monto_externo = self.monto_mapping[monto_id]
+            
+            params = {
+                'action': 'recarga',
+                'usuario': self.usuario,
+                'clave': self.clave,
+                'tipo': 'recargaPinFreefirebs',
+                'monto': monto_externo,
+                'numero': 0  # Número de prueba
+            }
+            
+            result = self._make_request(params)
+            
+            if result.get('status') == 'success':
+                # Analizar la respuesta para determinar disponibilidad
+                response_text = str(result.get('data', '')).lower()
+                
+                # Palabras clave que indican falta de stock
+                no_stock_keywords = [
+                    'sin stock', 'no stock', 'agotado', 'no disponible',
+                    'out of stock', 'unavailable', 'insufficient',
+                    'no hay', 'temporalmente no disponible', 'error',
+                    'no se pudo', 'fallido', 'failed'
+                ]
+                
+                # Verificar si hay indicadores de falta de stock
+                has_stock = True
+                for keyword in no_stock_keywords:
+                    if keyword in response_text:
+                        has_stock = False
+                        break
+                
+                # Si la respuesta contiene un código de pin válido, asumir que hay stock
+                if not has_stock:
+                    # Buscar patrones de pin para confirmar
+                    import re
+                    pin_patterns = [
+                        r'[A-Z0-9]{10,20}',  # Código alfanumérico
+                        r'PIN[:\s]*[A-Z0-9]+',
+                        r'CODIGO[:\s]*[A-Z0-9]+'
+                    ]
+                    
+                    for pattern in pin_patterns:
+                        if re.search(pattern, response_text, re.IGNORECASE):
+                            has_stock = True
+                            break
+                
+                return {
+                    'status': 'success',
+                    'available': has_stock,
+                    'message': 'Stock disponible' if has_stock else 'Sin stock en API externa',
+                    'monto_id': monto_id
+                }
+            else:
+                # Si hay error en la API, asumir que no hay stock
+                return {
+                    'status': 'error',
+                    'available': False,
+                    'message': f'Error al verificar stock: {result.get("message", "Error desconocido")}',
+                    'monto_id': monto_id
+                }
+                
+        except Exception as e:
+            logger.error(f"Error al verificar stock para monto_id {monto_id}: {str(e)}")
+            return {
+                'status': 'error',
+                'available': False,
+                'message': f'Error al verificar stock: {str(e)}',
+                'monto_id': monto_id
+            }
+    
     def is_available(self):
         """Verifica si la API externa está disponible"""
         try:

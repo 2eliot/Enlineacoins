@@ -67,10 +67,14 @@
             <option value="">Seleccione paquete</option>
             {% for package_id in range(1, 10) %}
               {% set package = prices.get(package_id, {}) %}
+              {% set stock_info = stock.get(package_id, {}) %}
               {% if package %}
-                <option id="monto_{{ package_id }}" value="{{ package_id }}" data-stock="{{ stock.get(package_id, 0) }}" data-price="{{ package.precio }}">
-                  {{ package.nombre }} / ${{ "%.2f"|format(package.precio) }} 
-                  {% if stock.get(package_id, 0) > 0 %}(✅){% else %}(❌){% endif %}
+                <option id="monto_{{ package_id }}" value="{{ package_id }}" 
+                        data-stock="{{ stock_info.get('local', 0) }}" 
+                        data-external="{{ stock_info.get('external_available', false)|lower }}"
+                        data-available="{{ stock_info.get('total_available', false)|lower }}"
+                        data-price="{{ package.precio }}">
+                  {{ package.nombre }} / ${{ "%.2f"|format(package.precio) }}
                 </option>
               {% endif %}
             {% endfor %}
@@ -168,20 +172,11 @@
       const submitBtn = document.getElementById('submit-btn');
       
       if (montoSelect.value) {
-        const selectedOption = montoSelect.options[montoSelect.selectedIndex];
-        const stock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
-        
         // Siempre habilitar el selector de cantidad (tenemos API externa como respaldo)
         cantidadSelect.disabled = false;
         cantidadSelect.style.backgroundColor = '#AAF0F4';
         cantidadSelect.value = '1';
-        
-        // Mostrar información del stock pero mantener botón habilitado
-        if (stock > 0) {
-          submitBtn.textContent = 'Validar compra';
-        } else {
-          submitBtn.textContent = 'Validar compra (API externa)';
-        }
+        submitBtn.textContent = 'Validar compra';
       } else {
         // Deshabilitar el selector de cantidad solo si no hay paquete seleccionado
         cantidadSelect.disabled = true;
