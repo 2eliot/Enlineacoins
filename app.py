@@ -1023,16 +1023,11 @@ def admin_panel():
     prices = get_all_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
     
-    # Obtener estado de la API externa
-    pin_manager = create_pin_manager(DATABASE)
-    api_status = pin_manager.get_stock_status()
-    
     return render_template('admin.html', 
                          users=users, 
                          pin_stock=pin_stock, 
                          prices=prices, 
-                         bloodstriker_prices=bloodstriker_prices,
-                         api_status=api_status)
+                         bloodstriker_prices=bloodstriker_prices)
 
 @app.route('/admin/add_credit', methods=['POST'])
 def admin_add_credit():
