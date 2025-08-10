@@ -1349,9 +1349,21 @@ def validar_freefire_latam():
             if result.get('status') == 'success':
                 pines_data = result.get('pins', [])
                 pines_codigos = [pin['pin_code'] for pin in pines_data]
-                sources_used = ['local_stock']
+                # Determinar fuentes usadas basado en el resultado
+                source = result.get('source', 'local_stock')
+                sources_used = [source]
+            elif result.get('status') == 'partial_success':
+                # Algunos pines obtenidos, pero no todos
+                pines_data = result.get('pins', [])
+                pines_codigos = [pin['pin_code'] for pin in pines_data]
+                source = result.get('source', 'local_stock')
+                sources_used = [source]
+                
+                # Mostrar advertencia pero continuar con los pines obtenidos
+                cantidad = len(pines_codigos)  # Actualizar cantidad a los pines realmente obtenidos
+                flash(f'Advertencia: Solo se obtuvieron {cantidad} pines de los {result.get("cantidad_solicitada", cantidad)} solicitados', 'warning')
             else:
-                flash(f'Stock insuficiente. {result.get("message", "Error desconocido")}', 'error')
+                flash(f'Error al obtener pines. {result.get("message", "Error desconocido")}', 'error')
                 return redirect('/juego/freefire_latam')
         
         # Verificar que se obtuvieron pines

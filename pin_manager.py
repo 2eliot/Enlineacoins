@@ -179,7 +179,9 @@ class PinManager:
     
     def request_multiple_pins(self, monto_id, cantidad):
         """
-        Solicita múltiples pines del stock local únicamente
+        Solicita múltiples pines según la configuración de fuente
+        Para API externa: hace múltiples llamadas individuales (1 pin por llamada)
+        Para stock local: obtiene múltiples pines del stock
         
         Args:
             monto_id (int): ID del monto (1-9)
@@ -198,51 +200,17 @@ class PinManager:
                     'error_type': 'validation'
                 }
             
-            local_stock = self.get_local_stock(monto_id)
+            # Obtener configuración de fuente para este monto
+            source_config = self.get_pin_source_config(monto_id)
             
-            if local_stock < cantidad:
-                return {
-                    'status': 'error',
-                    'message': f'Stock insuficiente. Disponible: {local_stock}, Solicitado: {cantidad}',
-                    'error_type': 'insufficient_stock',
-                    'local_stock': local_stock,
-                    'cantidad_solicitada': cantidad
-                }
-            
-            pines_obtenidos = []
-            
-            # Obtener pines del stock local
-            for i in range(cantidad):
-                local_pin = self.get_local_pin(monto_id)
-                if local_pin:
-                    self.remove_local_pin(local_pin['id'])
-                    pines_obtenidos.append({
-                        'pin_code': local_pin['pin_codigo'],
-                        'source': 'local_stock'
-                    })
-                else:
-                    logger.warning(f"Pin local esperado no encontrado en iteración {i+1}")
-                    break
-            
-            # Resultado final
-            if len(pines_obtenidos) == cantidad:
-                return {
-                    'status': 'success',
-                    'pins': pines_obtenidos,
-                    'cantidad_solicitada': cantidad,
-                    'cantidad_obtenida': len(pines_obtenidos),
-                    'monto_id': monto_id,
-                    'timestamp': datetime.now().isoformat()
-                }
+            if source_config == 'api_externa':
+                # Para API externa: hacer múltiples llamadas individuales
+                logger.info(f"Usando API externa para {cantidad} pines (múltiples llamadas)")
+                return self._request_multiple_pins_from_api(monto_id, cantidad)
             else:
-                return {
-                    'status': 'error',
-                    'message': f'Solo se pudieron obtener {len(pines_obtenidos)} de {cantidad} pines',
-                    'error_type': 'partial_stock',
-                    'cantidad_solicitada': cantidad,
-                    'cantidad_obtenida': len(pines_obtenidos),
-                    'pins': pines_obtenidos
-                }
+                # Para stock local: obtener múltiples pines del stock
+                logger.info(f"Usando stock local para {cantidad} pines")
+                return self._request_multiple_pins_from_local(monto_id, cantidad)
                 
         except Exception as e:
             logger.error(f"Error inesperado al solicitar múltiples pines: {str(e)}")
@@ -250,6 +218,117 @@ class PinManager:
                 'status': 'error',
                 'message': f'Error inesperado: {str(e)}',
                 'error_type': 'unexpected'
+            }
+    
+    def _request_multiple_pins_from_api(self, monto_id, cantidad):
+        """
+        Solicita múltiples pines de la API externa haciendo llamadas individuales
+        """
+        pines_obtenidos = []
+        errores = []
+        
+        for i in range(cantidad):
+            logger.info(f"Solicitando pin {i+1}/{cantidad} de API externa para monto_id {monto_id}")
+            
+            api_result = self.inefable_client.request_pin(monto_id)
+            
+            if api_result.get('status') == 'success':
+                pines_obtenidos.append({
+                    'pin_code': api_result.get('pin_code'),
+                    'source': 'inefable_api'
+                })
+                logger.info(f"Pin {i+1}/{cantidad} obtenido exitosamente de API externa")
+            else:
+                error_msg = api_result.get('message', 'Error desconocido')
+                errores.append(f"Pin {i+1}: {error_msg}")
+                logger.error(f"Error al obtener pin {i+1}/{cantidad} de API externa: {error_msg}")
+                
+                # Si falla una solicitud, detener el proceso
+                break
+        
+        # Resultado final
+        if len(pines_obtenidos) == cantidad:
+            return {
+                'status': 'success',
+                'pins': pines_obtenidos,
+                'cantidad_solicitada': cantidad,
+                'cantidad_obtenida': len(pines_obtenidos),
+                'monto_id': monto_id,
+                'source': 'inefable_api',
+                'timestamp': datetime.now().isoformat()
+            }
+        elif len(pines_obtenidos) > 0:
+            return {
+                'status': 'partial_success',
+                'pins': pines_obtenidos,
+                'cantidad_solicitada': cantidad,
+                'cantidad_obtenida': len(pines_obtenidos),
+                'monto_id': monto_id,
+                'source': 'inefable_api',
+                'message': f'Solo se obtuvieron {len(pines_obtenidos)} de {cantidad} pines',
+                'errores': errores,
+                'timestamp': datetime.now().isoformat()
+            }
+        else:
+            return {
+                'status': 'error',
+                'message': f'No se pudo obtener ningún pin de la API externa',
+                'error_type': 'api_failure',
+                'cantidad_solicitada': cantidad,
+                'cantidad_obtenida': 0,
+                'errores': errores,
+                'monto_id': monto_id
+            }
+    
+    def _request_multiple_pins_from_local(self, monto_id, cantidad):
+        """
+        Solicita múltiples pines del stock local
+        """
+        local_stock = self.get_local_stock(monto_id)
+        
+        if local_stock < cantidad:
+            return {
+                'status': 'error',
+                'message': f'Stock insuficiente. Disponible: {local_stock}, Solicitado: {cantidad}',
+                'error_type': 'insufficient_stock',
+                'local_stock': local_stock,
+                'cantidad_solicitada': cantidad
+            }
+        
+        pines_obtenidos = []
+        
+        # Obtener pines del stock local
+        for i in range(cantidad):
+            local_pin = self.get_local_pin(monto_id)
+            if local_pin:
+                self.remove_local_pin(local_pin['id'])
+                pines_obtenidos.append({
+                    'pin_code': local_pin['pin_codigo'],
+                    'source': 'local_stock'
+                })
+            else:
+                logger.warning(f"Pin local esperado no encontrado en iteración {i+1}")
+                break
+        
+        # Resultado final
+        if len(pines_obtenidos) == cantidad:
+            return {
+                'status': 'success',
+                'pins': pines_obtenidos,
+                'cantidad_solicitada': cantidad,
+                'cantidad_obtenida': len(pines_obtenidos),
+                'monto_id': monto_id,
+                'source': 'local_stock',
+                'timestamp': datetime.now().isoformat()
+            }
+        else:
+            return {
+                'status': 'error',
+                'message': f'Solo se pudieron obtener {len(pines_obtenidos)} de {cantidad} pines',
+                'error_type': 'partial_stock',
+                'cantidad_solicitada': cantidad,
+                'cantidad_obtenida': len(pines_obtenidos),
+                'pins': pines_obtenidos
             }
     
     
