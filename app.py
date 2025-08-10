@@ -1429,11 +1429,11 @@ def freefire_latam():
             session['saldo'] = user['saldo']
         conn.close()
     
-    # Obtener solo stock local (no consultar API externa al cargar la página)
+    # Obtener SOLO stock local (NO consultar API externa al cargar la página)
     pin_manager = create_pin_manager(DATABASE)
     local_stock = pin_manager.get_local_stock()
     
-    # Preparar información de stock solo local
+    # Preparar información de stock SOLO local (sin consultas a API externa)
     stock = {}
     for monto_id in range(1, 10):
         local_count = local_stock.get(monto_id, 0)
