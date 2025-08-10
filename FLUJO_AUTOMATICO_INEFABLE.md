@@ -28,9 +28,9 @@ https://inefableshop.net/conexion_api/api.php?action=recarga&usuario=inefablesho
 
 ### El sistema automáticamente:
 - ✅ Verifica la configuración del paquete
-- ✅ Usa la fuente configurada (Stock Local o API Externa)
-- ✅ Aplica respaldo automático si la fuente principal falla
-- ✅ Entrega el pin al usuario sin demoras
+- ✅ Usa ÚNICAMENTE la fuente configurada (Stock Local o API Externa)
+- ✅ Si la fuente configurada falla, muestra error (SIN respaldo automático)
+- ✅ Entrega el pin al usuario según la configuración
 
 ## 🛠️ Panel de Administración
 
@@ -46,7 +46,7 @@ Cada paquete (monto 1-9) puede configurarse individualmente:
 #### **🌐 API Externa** 
 - Los usuarios obtienen pines directamente de la API de Inefable
 - Automático, sin necesidad de stock local
-- Respaldo automático al stock local si falla
+- Si la API falla, muestra error (SIN respaldo automático)
 
 ### Controles del Admin
 
@@ -73,12 +73,12 @@ Cada paquete (monto 1-9) puede configurarse individualmente:
 - Verifica que la API esté funcionando
 - No consume pines, solo prueba conectividad
 
-## 🔄 Sistema de Respaldo Automático
+## 🔄 Sistema Sin Respaldo Automático
 
 ### Cuando un paquete está configurado en "API Externa":
-1. **Intenta obtener pin de la API de Inefable**
-2. **Si la API falla** → Automáticamente usa stock local
-3. **Si no hay stock local** → Muestra error al usuario
+1. **Intenta obtener pin SOLO de la API de Inefable**
+2. **Si la API falla** → Muestra error al usuario (SIN usar stock local)
+3. **No hay respaldo automático**
 
 ### Cuando un paquete está configurado en "Stock Local":
 1. **Usa solo el stock local**
@@ -127,8 +127,8 @@ Todos los paquetes: 📦 Stock Local
 ### Solución de Problemas:
 
 #### API Externa No Responde:
-- ✅ El sistema usa respaldo automático
-- ✅ Los usuarios siguen recibiendo pines del stock local
+- ❌ Los usuarios recibirán error (SIN respaldo automático)
+- ✅ Cambiar configuración a "Stock Local" manualmente
 - ⚠️ Verificar credenciales si persiste
 
 #### Stock Local Agotado:
@@ -140,19 +140,19 @@ Todos los paquetes: 📦 Stock Local
 
 ### Para Usuarios:
 - ✅ **Experiencia transparente**: No notan la diferencia
-- ✅ **Disponibilidad alta**: Respaldo automático
+- ✅ **Configuración clara**: Cada fuente funciona independientemente
 - ✅ **Velocidad**: Entrega inmediata de pines
 
 ### Para Administradores:
 - ✅ **Control granular**: Configuración por paquete
 - ✅ **Flexibilidad**: Cambio en tiempo real
 - ✅ **Automatización**: Menos intervención manual
-- ✅ **Respaldo**: Sistema a prueba de fallos
+- ✅ **Control total**: Sin respaldos automáticos no deseados
 
 ### Para el Negocio:
 - ✅ **Escalabilidad**: Maneja más usuarios
-- ✅ **Confiabilidad**: Múltiples fuentes de pines
-- ✅ **Eficiencia**: Optimización automática de recursos
+- ✅ **Predictibilidad**: Cada fuente funciona independientemente
+- ✅ **Eficiencia**: Optimización manual de recursos
 
 ## 🎮 Mapeo de Paquetes
 
