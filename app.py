@@ -370,6 +370,7 @@ def get_user_wallet_credits(user_id):
             usuario_id INTEGER,
             monto REAL DEFAULT 0.0,
             fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            visto BOOLEAN DEFAULT FALSE,
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         )
     ''')
@@ -381,6 +382,67 @@ def get_user_wallet_credits(user_id):
     ''', (user_id,)).fetchall()
     conn.close()
     return credits
+
+def get_unread_wallet_credits_count(user_id):
+    """Obtiene si hay créditos de billetera no vistos (retorna 1 si hay, 0 si no hay)"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS creditos_billetera (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            monto REAL DEFAULT 0.0,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            visto BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Agregar columna 'visto' si no existe (para compatibilidad con datos existentes)
+    try:
+        conn.execute('ALTER TABLE creditos_billetera ADD COLUMN visto BOOLEAN DEFAULT FALSE')
+        conn.commit()
+    except:
+        pass  # La columna ya existe
+    
+    count = conn.execute('''
+        SELECT COUNT(*) FROM creditos_billetera 
+        WHERE usuario_id = ? AND (visto = FALSE OR visto IS NULL)
+    ''', (user_id,)).fetchone()[0]
+    conn.close()
+    
+    # Retornar 1 si hay créditos no vistos, 0 si no hay
+    return 1 if count > 0 else 0
+
+def mark_wallet_credits_as_read(user_id):
+    """Marca todos los créditos de billetera como vistos"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS creditos_billetera (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            monto REAL DEFAULT 0.0,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            visto BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Agregar columna 'visto' si no existe
+    try:
+        conn.execute('ALTER TABLE creditos_billetera ADD COLUMN visto BOOLEAN DEFAULT FALSE')
+        conn.commit()
+    except:
+        pass  # La columna ya existe
+    
+    conn.execute('''
+        UPDATE creditos_billetera 
+        SET visto = TRUE 
+        WHERE usuario_id = ?
+    ''', (user_id,))
+    conn.commit()
+    conn.close()
 
 
 # Inicializar la base de datos al iniciar la aplicación
@@ -443,12 +505,18 @@ def index():
             balance = 0
             transactions_data = {'transactions': [], 'pagination': {'page': 1, 'total_pages': 0, 'has_prev': False, 'has_next': False}}
     
+    # Obtener contador de notificaciones de cartera para usuarios normales
+    wallet_notification_count = 0
+    if not is_admin and 'user_db_id' in session:
+        wallet_notification_count = get_unread_wallet_credits_count(session['user_db_id'])
+    
     return render_template('index.html', 
                          user_id=user_id, 
                          balance=balance, 
                          transactions=transactions_data['transactions'],
                          pagination=transactions_data['pagination'],
-                         is_admin=is_admin)
+                         is_admin=is_admin,
+                         wallet_notification_count=wallet_notification_count)
 
 @app.route('/auth')
 def auth():
@@ -1267,6 +1335,9 @@ def billetera():
     if not user_id:
         flash('Error al acceder a la billetera', 'error')
         return redirect('/')
+    
+    # Marcar todas las notificaciones de cartera como vistas
+    mark_wallet_credits_as_read(user_id)
     
     # Obtener créditos de billetera
     wallet_credits = get_user_wallet_credits(user_id)

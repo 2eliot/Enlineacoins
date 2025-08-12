@@ -37,7 +37,12 @@
     <div class="icon-container">
       <svg class="icon" viewBox="0 0 24 24"><path d="M3 10L12 2l9 8v10a1 1 0 01-1 1h-6v-6H10v6H4a1 1 0 01-1-1V10z"/></svg>
       {% if not session.get('is_admin') %}
-      <svg class="icon" onclick="window.location.href='/billetera'" viewBox="0 0 24 24"><path d="M18 4H6C4.9 4 4 4.9 4 6v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 6h12v2H6V6zm0 4h12v8H6v-8zm2 2h8v1H8v-1zm0 2h6v1H8v-1z"/></svg>
+      <div class="wallet-icon-container" onclick="window.location.href='/billetera'">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M18 4H6C4.9 4 4 4.9 4 6v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 6h12v2H6V6zm0 4h12v8H6v-8zm2 2h8v1H8v-1zm0 2h6v1H8v-1z"/></svg>
+        {% if wallet_notification_count > 0 %}
+        <div class="wallet-notification-badge">{{ wallet_notification_count }}</div>
+        {% endif %}
+      </div>
       {% else %}
       <svg class="icon" viewBox="0 0 24 24"><path d="M18 4H6C4.9 4 4 4.9 4 6v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 6h12v2H6V6zm0 4h12v8H6v-8zm2 2h8v1H8v-1zm0 2h6v1H8v-1z"/></svg>
       {% endif %}
