@@ -444,6 +444,130 @@ def mark_wallet_credits_as_read(user_id):
     conn.commit()
     conn.close()
 
+# Funciones para sistema de noticias
+def create_news_table():
+    """Crea la tabla de noticias si no existe"""
+    conn = get_db_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS noticias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            contenido TEXT NOT NULL,
+            importante BOOLEAN DEFAULT FALSE,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def create_news_views_table():
+    """Crea la tabla para rastrear noticias vistas por usuario"""
+    conn = get_db_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS noticias_vistas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            noticia_id INTEGER,
+            fecha_vista DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
+            FOREIGN KEY (noticia_id) REFERENCES noticias (id),
+            UNIQUE(usuario_id, noticia_id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def create_news(titulo, contenido, importante=False):
+    """Crea una nueva noticia"""
+    create_news_table()
+    conn = get_db_connection()
+    cursor = conn.execute('''
+        INSERT INTO noticias (titulo, contenido, importante)
+        VALUES (?, ?, ?)
+    ''', (titulo, contenido, importante))
+    news_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return news_id
+
+def get_all_news():
+    """Obtiene todas las noticias ordenadas por fecha (más recientes primero)"""
+    create_news_table()
+    conn = get_db_connection()
+    news = conn.execute('''
+        SELECT * FROM noticias 
+        ORDER BY fecha DESC
+    ''').fetchall()
+    conn.close()
+    return news
+
+def get_user_news(user_id):
+    """Obtiene las noticias para un usuario específico"""
+    create_news_table()
+    create_news_views_table()
+    conn = get_db_connection()
+    news = conn.execute('''
+        SELECT * FROM noticias 
+        ORDER BY fecha DESC
+        LIMIT 20
+    ''').fetchall()
+    conn.close()
+    return news
+
+def get_unread_news_count(user_id):
+    """Obtiene el número de noticias no leídas por un usuario"""
+    create_news_table()
+    create_news_views_table()
+    conn = get_db_connection()
+    
+    # Contar noticias que el usuario no ha visto
+    count = conn.execute('''
+        SELECT COUNT(*) FROM noticias n
+        WHERE n.id NOT IN (
+            SELECT nv.noticia_id FROM noticias_vistas nv 
+            WHERE nv.usuario_id = ?
+        )
+    ''', (user_id,)).fetchone()[0]
+    conn.close()
+    
+    # Retornar 1 si hay noticias no leídas, 0 si no hay
+    return 1 if count > 0 else 0
+
+def mark_news_as_read(user_id):
+    """Marca todas las noticias como leídas para un usuario"""
+    create_news_table()
+    create_news_views_table()
+    conn = get_db_connection()
+    
+    # Obtener todas las noticias que el usuario no ha visto
+    unread_news = conn.execute('''
+        SELECT id FROM noticias 
+        WHERE id NOT IN (
+            SELECT noticia_id FROM noticias_vistas 
+            WHERE usuario_id = ?
+        )
+    ''', (user_id,)).fetchall()
+    
+    # Marcar como vistas
+    for news in unread_news:
+        conn.execute('''
+            INSERT OR IGNORE INTO noticias_vistas (usuario_id, noticia_id)
+            VALUES (?, ?)
+        ''', (user_id, news['id']))
+    
+    conn.commit()
+    conn.close()
+
+def delete_news(news_id):
+    """Elimina una noticia y sus registros de vistas"""
+    conn = get_db_connection()
+    # Eliminar registros de vistas
+    conn.execute('DELETE FROM noticias_vistas WHERE noticia_id = ?', (news_id,))
+    # Eliminar noticia
+    conn.execute('DELETE FROM noticias WHERE id = ?', (news_id,))
+    conn.commit()
+    conn.close()
+
 
 # Inicializar la base de datos al iniciar la aplicación
 init_db()
@@ -510,13 +634,19 @@ def index():
     if not is_admin and 'user_db_id' in session:
         wallet_notification_count = get_unread_wallet_credits_count(session['user_db_id'])
     
+    # Obtener contador de notificaciones de noticias
+    news_notification_count = 0
+    if 'user_db_id' in session:
+        news_notification_count = get_unread_news_count(session['user_db_id'])
+    
     return render_template('index.html', 
                          user_id=user_id, 
                          balance=balance, 
                          transactions=transactions_data['transactions'],
                          pagination=transactions_data['pagination'],
                          is_admin=is_admin,
-                         wallet_notification_count=wallet_notification_count)
+                         wallet_notification_count=wallet_notification_count,
+                         news_notification_count=news_notification_count)
 
 @app.route('/auth')
 def auth():
@@ -1135,13 +1265,15 @@ def admin_panel():
     prices = get_all_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
     pin_sources_config = get_pin_source_config()
+    noticias = get_all_news()
     
     return render_template('admin.html', 
                          users=users, 
                          pin_stock=pin_stock, 
                          prices=prices, 
                          bloodstriker_prices=bloodstriker_prices,
-                         pin_sources_config=pin_sources_config)
+                         pin_sources_config=pin_sources_config,
+                         noticias=noticias)
 
 @app.route('/admin/add_credit', methods=['POST'])
 def admin_add_credit():
@@ -1946,6 +2078,86 @@ def admin_toggle_pin_source():
         flash('Monto ID debe ser un número válido', 'error')
     except Exception as e:
         flash(f'Error al actualizar configuración: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+# Rutas para sistema de noticias
+@app.route('/noticias')
+def noticias():
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    user_id = session.get('user_db_id')
+    is_admin = session.get('is_admin', False)
+    
+    # Para admin, usar ID 0 y permitir acceso
+    if is_admin:
+        user_id = 0
+    elif not user_id:
+        flash('Error al acceder a las noticias', 'error')
+        return redirect('/')
+    
+    # Marcar todas las noticias como leídas (solo para usuarios normales)
+    if not is_admin:
+        mark_news_as_read(user_id)
+    
+    # Obtener noticias para mostrar
+    noticias_list = get_user_news(user_id)
+    
+    return render_template('noticias.html', 
+                         noticias=noticias_list,
+                         user_id=session.get('id', '00000'),
+                         is_admin=is_admin)
+
+@app.route('/admin/create_news', methods=['POST'])
+def admin_create_news():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    titulo = request.form.get('titulo')
+    contenido = request.form.get('contenido')
+    importante = request.form.get('importante') == '1'
+    
+    if not titulo or not contenido:
+        flash('Por favor complete todos los campos obligatorios', 'error')
+        return redirect('/admin')
+    
+    # Validar longitud
+    if len(titulo) > 200:
+        flash('El título no puede exceder 200 caracteres', 'error')
+        return redirect('/admin')
+    
+    if len(contenido) > 2000:
+        flash('El contenido no puede exceder 2000 caracteres', 'error')
+        return redirect('/admin')
+    
+    try:
+        news_id = create_news(titulo, contenido, importante)
+        tipo_noticia = "importante" if importante else "normal"
+        flash(f'Noticia {tipo_noticia} creada exitosamente (ID: {news_id})', 'success')
+    except Exception as e:
+        flash(f'Error al crear la noticia: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/delete_news', methods=['POST'])
+def admin_delete_news():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    news_id = request.form.get('news_id')
+    
+    if not news_id:
+        flash('ID de noticia inválido', 'error')
+        return redirect('/admin')
+    
+    try:
+        delete_news(int(news_id))
+        flash('Noticia eliminada exitosamente', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar la noticia: {str(e)}', 'error')
     
     return redirect('/admin')
 

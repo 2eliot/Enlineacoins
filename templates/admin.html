@@ -50,6 +50,7 @@
         <button class="tab-button active" onclick="showTab('usuarios')">👥 Usuarios</button>
         <button class="tab-button" onclick="showTab('pines')">📌 Gestor de Pines</button>
         <button class="tab-button" onclick="showTab('precios')">💰 Precios</button>
+        <button class="tab-button" onclick="showTab('noticias')">📰 Noticias</button>
       </div>
 
       <!-- Pestaña de Usuarios -->
@@ -317,6 +318,78 @@
                 </div>
                 {% endfor %}
               </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Pestaña de Noticias -->
+      <div id="tab-noticias" class="tab-content">
+        <section class="news-section">
+          <h2>📰 Gestión de Noticias</h2>
+          
+          <div class="news-management">
+            <!-- Crear nueva noticia -->
+            <div class="create-news-container">
+              <h3>✍️ Crear Nueva Noticia</h3>
+              <form method="POST" action="/admin/create_news" class="news-form">
+                <div class="form-group">
+                  <label for="news_title">📝 Título de la Noticia:</label>
+                  <input type="text" id="news_title" name="titulo" placeholder="Ingrese el título de la noticia" required maxlength="200">
+                </div>
+                
+                <div class="form-group">
+                  <label for="news_content">📄 Contenido:</label>
+                  <textarea id="news_content" name="contenido" rows="6" placeholder="Escriba el contenido de la noticia aquí..." required maxlength="2000"></textarea>
+                  <small class="form-help">Máximo 2000 caracteres. Puede usar saltos de línea para organizar el texto.</small>
+                </div>
+                
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="importante" value="1">
+                    <span class="checkbox-custom"></span>
+                    📢 Marcar como noticia importante
+                  </label>
+                  <small class="form-help">Las noticias importantes aparecen con un badge especial y generan notificación.</small>
+                </div>
+                
+                <button type="submit" class="btn btn-create-news">📰 Publicar Noticia</button>
+              </form>
+            </div>
+            
+            <!-- Lista de noticias existentes -->
+            <div class="existing-news-container">
+              <h3>📋 Noticias Publicadas</h3>
+              {% if noticias %}
+                <div class="admin-news-list">
+                  {% for noticia in noticias %}
+                  <div class="admin-news-card">
+                    <div class="admin-news-header">
+                      <h4 class="admin-news-title">{{ noticia.titulo }}</h4>
+                      <div class="admin-news-meta">
+                        <span class="admin-news-date">{{ noticia.fecha.split(' ')[0] }} {{ noticia.fecha.split(' ')[1].split('.')[0] }}</span>
+                        {% if noticia.importante %}
+                        <span class="admin-news-important">📢 Importante</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="admin-news-content">
+                      <p>{{ noticia.contenido[:150] }}{% if noticia.contenido|length > 150 %}...{% endif %}</p>
+                    </div>
+                    <div class="admin-news-actions">
+                      <form method="POST" action="/admin/delete_news" class="inline-form" onsubmit="return confirm('¿Estás seguro de eliminar esta noticia?')">
+                        <input type="hidden" name="news_id" value="{{ noticia.id }}">
+                        <button type="submit" class="btn btn-delete-news">🗑️ Eliminar</button>
+                      </form>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="no-news-admin">
+                  <p>📰 No hay noticias publicadas. Crea la primera noticia usando el formulario de arriba.</p>
+                </div>
+              {% endif %}
             </div>
           </div>
         </section>

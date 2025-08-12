@@ -1052,3 +1052,239 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Estilos para la sección de noticias */
+.news-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-top: 2rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.news-section h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.news-management {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.create-news-container {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.create-news-container h3 {
+  margin-bottom: 1rem;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.news-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #495057;
+}
+
+.checkbox-label input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-custom {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ced4da;
+  border-radius: 3px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+  background: #667eea;
+  border-color: #667eea;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.btn-create-news {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-create-news:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.existing-news-container {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.existing-news-container h3 {
+  margin-bottom: 1rem;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.admin-news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.admin-news-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-news-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-news-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.admin-news-title {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.admin-news-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.admin-news-date {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.admin-news-important {
+  background: #dc3545;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.admin-news-content {
+  margin-bottom: 0.75rem;
+}
+
+.admin-news-content p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.admin-news-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-delete-news {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-delete-news:hover {
+  background: #c82333;
+}
+
+.no-news-admin {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Responsive para noticias */
+@media (max-width: 768px) {
+  .news-management {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .create-news-container,
+  .existing-news-container {
+    padding: 1rem;
+  }
+  
+  .admin-news-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .admin-news-meta {
+    align-items: flex-start;
+  }
+  
+  .admin-news-list {
+    max-height: 300px;
+  }
+}

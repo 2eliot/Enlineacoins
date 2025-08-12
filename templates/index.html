@@ -36,6 +36,15 @@
 
     <div class="icon-container">
       <svg class="icon" viewBox="0 0 24 24"><path d="M3 10L12 2l9 8v10a1 1 0 01-1 1h-6v-6H10v6H4a1 1 0 01-1-1V10z"/></svg>
+      
+      <!-- Botón de Noticias (solo aparece cuando hay notificaciones) -->
+      {% if news_notification_count > 0 %}
+      <div class="news-icon-container" onclick="window.location.href='/noticias'">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4V6zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm12-2h4v6h-4v-6zM2 4v16h20V4H2zm18 14H4V6h16v12z"/></svg>
+        <div class="news-notification-badge">{{ news_notification_count }}</div>
+      </div>
+      {% endif %}
+      
       {% if not session.get('is_admin') %}
       <div class="wallet-icon-container" onclick="window.location.href='/billetera'">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18 4H6C4.9 4 4 4.9 4 6v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 6h12v2H6V6zm0 4h12v8H6v-8zm2 2h8v1H8v-1zm0 2h6v1H8v-1z"/></svg>
