@@ -37,8 +37,8 @@
     <div class="icon-container">
       <svg class="icon" viewBox="0 0 24 24"><path d="M3 10L12 2l9 8v10a1 1 0 01-1 1h-6v-6H10v6H4a1 1 0 01-1-1V10z"/></svg>
       
-      <!-- Botón de Noticias (solo aparece cuando hay notificaciones) -->
-      {% if news_notification_count > 0 %}
+      <!-- Botón de Noticias (solo para usuarios normales y cuando hay notificaciones) -->
+      {% if not session.get('is_admin') and news_notification_count > 0 %}
       <div class="news-icon-container" onclick="window.location.href='/noticias'">
         <svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4V6zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm12-2h4v6h-4v-6zM2 4v16h20V4H2zm18 14H4V6h16v12z"/></svg>
         <div class="news-notification-badge">{{ news_notification_count }}</div>
