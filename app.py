@@ -2310,7 +2310,7 @@ def get_pin_stock_freefire_global():
     return stock
 
 def get_available_pin_freefire_global(monto_id):
-    """Obtiene un pin disponible de Free Fire Global para el monto especificado"""
+    """Obtiene un pin disponible de Free Fire Global para el monto especificado y lo elimina"""
     conn = get_db_connection()
     pin = conn.execute('''
         SELECT * FROM pines_freefire_global 
@@ -2319,12 +2319,11 @@ def get_available_pin_freefire_global(monto_id):
     ''', (monto_id,)).fetchone()
     
     if pin:
-        # Marcar como usado
+        # Eliminar el pin de la base de datos
         conn.execute('''
-            UPDATE pines_freefire_global 
-            SET usado = TRUE, fecha_usado = CURRENT_TIMESTAMP, usuario_id = ?
+            DELETE FROM pines_freefire_global 
             WHERE id = ?
-        ''', (None, pin['id']))
+        ''', (pin['id'],))
         conn.commit()
     
     conn.close()

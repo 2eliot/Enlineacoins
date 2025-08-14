@@ -56,7 +56,7 @@ class PinManager:
         return pin
     
     def remove_local_pin(self, pin_id):
-        """Elimina un pin del stock local"""
+        """Elimina un pin del stock local completamente"""
         conn = self.get_db_connection()
         conn.execute('DELETE FROM pines_freefire WHERE id = ?', (pin_id,))
         conn.commit()
