@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Free Fire Latam</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='freefire_latam.css') }}">
+  <title>Free Fire</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='freefire.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -61,50 +61,27 @@
   </section>
 
   <section class="juego-container">
-    <h1 class="juego-titulo">Free Fire Latam</h1>
+    <h1 class="juego-titulo">Free Fire</h1>
 
-    <form method="POST" action="/validar/freefire_latam" class="juego-form">
+    <form method="POST" action="/validar/freefire" class="juego-form">
       <div class="form-row">
         <div class="form-col">
           <label for="monto">Selecciona tu paquete:</label>
-          <select id="monto" name="monto" class="form-control" style="background-color: #AAF0F4;" required onchange="updateQuantityOptions()">
+          <select id="monto" name="monto" class="form-control" style="background-color: #AAF0F4;" required>
             <option value="">Seleccione paquete</option>
-            {% for package_id in range(1, 10) %}
-              {% set package = prices.get(package_id, {}) %}
-              {% set stock_info = stock.get(package_id, {}) %}
-              {% if package %}
-                {% set is_available = stock_info.get('total_available', false) %}
-                {% set local_stock = stock_info.get('local', 0) %}
-                {% set external_available = stock_info.get('external_available', false) %}
-                
-                <option id="monto_{{ package_id }}" value="{{ package_id }}" 
-                        data-stock="{{ local_stock }}" 
-                        data-external="{{ external_available|lower }}"
-                        data-available="{{ is_available|lower }}"
-                        data-price="{{ package.precio }}"
-                        {% if not is_available %}disabled{% endif %}>
-                  {{ package.nombre }} / ${{ "%.2f"|format(package.precio) }}
-                  {% if is_available %}✅{% else %}❌{% endif %}
-                </option>
-              {% endif %}
+            {% for package_id, package_info in prices.items() %}
+            <option value="{{ package_id }}">{{ package_info.nombre }} / ${{ "%.2f"|format(package_info.precio) }}</option>
             {% endfor %}
           </select>
         </div>
-        
         <div class="form-col">
-          <label for="cantidad">Cantidad:</label>
-          <select id="cantidad" name="cantidad" class="form-control" style="background-color: #AAF0F4;" required disabled>
-            <option value="">-</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
+          <label for="cantidad">Cantidad de pines:</label>
+          <select id="cantidad" name="cantidad" class="form-control" style="background-color: #AAF0F4;" required>
+            <option value="1">1 pin</option>
+            <option value="2">2 pines</option>
+            <option value="3">3 pines</option>
+            <option value="4">4 pines</option>
+            <option value="5">5 pines</option>
           </select>
         </div>
       </div>
@@ -117,20 +94,24 @@
     {% if compra_exitosa %}
     <div class="compra-exitosa">
       <h3>🎉 ¡Compra Exitosa!</h3>
+      
       {% if pines_list %}
-        <div class="pines-container">
-          <p class="pines-label">PINES ({{ pines_list|length }}):</p>
-          {% for pin in pines_list %}
-          <div class="pin-item">
-            <div class="pin-info">
-              <p class="pin-code" id="pinCode{{ loop.index }}">{{ pin }}</p>
-              <button class="copy-btn" onclick="copyPin('pinCode{{ loop.index }}')">📋</button>
-            </div>
+        <!-- Múltiples pines -->
+        <div class="pin-container">
+          <h4>📋 Tus {{ cantidad_comprada }} Pines:</h4>
+          {% for pin_code in pines_list %}
+          <div class="pin-info">
+            <p class="pin-label">PIN {{ loop.index }}:</p>
+            <p class="pin-code" id="pinCode{{ loop.index }}">{{ pin_code }}</p>
+            <button class="copy-btn" onclick="copyPin('pinCode{{ loop.index }}')">📋</button>
           </div>
           {% endfor %}
-          <button class="copy-all-btn" onclick="copyAllPins()">📋 Copiar todos</button>
+          <div class="copy-all-container">
+            <button class="copy-all-btn" onclick="copyAllPins()">📋 Copiar Todos los Pines</button>
+          </div>
         </div>
       {% else %}
+        <!-- Un solo pin -->
         <div class="pin-container">
           <div class="pin-info">
             <p class="pin-label">PIN:</p>
@@ -139,8 +120,8 @@
           </div>
         </div>
       {% endif %}
+      
       <div class="monto-info">
-        <p><strong>Cantidad:</strong> {{ cantidad_comprada or 1 }}</p>
         <p><strong>Monto Total:</strong> ${{ "%.2f"|format(monto_compra) }}</p>
       </div>
       <div class="entrega-info">
@@ -148,17 +129,16 @@
       </div>
     </div>
     {% else %}
-    <div class="juego-descripcion">
-      <p>💡 Instrucciones para canjear tu código PIN:</p>
-      <ul style="list-style-type: square; padding-left: 1.5rem; line-height: 1.6; color: #444;">
-        <li>Dirígete al sitio oficial de <a href="https://pagostore.garena.com/" target="_blank">https://pagostore.garena.com/</a></li>
-        <li>Accede con tu cuenta usando tu <strong>ID de jugador</strong></li>
-        <li>Verifica que la región seleccionada sea <strong>Bolivia</strong></li>
-        <li>Selecciona un paquete con el mismo valor de tu código PIN</li>
-        <li>Elige el método de pago <strong>Gamefan</strong></li>
-        <li>En la sección <strong>Gamecenter Gamefan</strong>, ingresa tu código</li>
-        <li>¡Hecho! Tus diamantes estarán disponibles al instante</li>
-      </ul>
+    <div class="informacion">
+      <p><strong>Importante:</strong> Los pines adquiridos no tienen reembolso una vez realizada la compra.</p>
+      <p style="color: red; font-weight: bold; font-style: italic;">¡Aprovecha esta oferta por tiempo limitado!</p>
+      <br><br>
+      <p>¿Cómo redimir?</p>
+      <br>
+      <li>Ingresa a <a href="https://redeempins.com/">https://redeempins.com/</a></li><br>
+      <li>Ingresa el pin adquirido</li><br>
+      <li>Ingresa tu ID</li><br>
+      <li>Acepta los Términos y Condiciones y luego canjear</li>
     </div>
     {% endif %}
 
@@ -193,29 +173,6 @@
       }
     });
     
-    function updateQuantityOptions() {
-      const montoSelect = document.getElementById('monto');
-      const cantidadSelect = document.getElementById('cantidad');
-      const totalPriceDiv = document.getElementById('total-price');
-      const submitBtn = document.getElementById('submit-btn');
-      
-      if (montoSelect.value) {
-        // Siempre habilitar el selector de cantidad (tenemos API externa como respaldo)
-        cantidadSelect.disabled = false;
-        cantidadSelect.style.backgroundColor = '#AAF0F4';
-        cantidadSelect.value = '1';
-        submitBtn.textContent = 'Validar compra';
-      } else {
-        // Deshabilitar el selector de cantidad solo si no hay paquete seleccionado
-        cantidadSelect.disabled = true;
-        cantidadSelect.style.backgroundColor = '#f8f9fa';
-        cantidadSelect.value = '';
-        submitBtn.textContent = 'Validar compra';
-      }
-      
-      updateTotalPrice();
-    }
-    
     function updateTotalPrice() {
       const montoSelect = document.getElementById('monto');
       const cantidadSelect = document.getElementById('cantidad');
@@ -223,20 +180,30 @@
       
       if (montoSelect.value && cantidadSelect.value) {
         const selectedOption = montoSelect.options[montoSelect.selectedIndex];
-        const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
-        const quantity = parseInt(cantidadSelect.value) || 0;
-        const total = price * quantity;
+        const priceText = selectedOption.textContent;
+        const priceMatch = priceText.match(/\$(\d+\.\d+)/);
         
-        totalPriceDiv.innerHTML = `<strong>Total: $${total.toFixed(2)}</strong>`;
-        totalPriceDiv.style.display = 'block';
+        if (priceMatch) {
+          const unitPrice = parseFloat(priceMatch[1]);
+          const quantity = parseInt(cantidadSelect.value);
+          const totalPrice = unitPrice * quantity;
+          
+          totalPriceDiv.innerHTML = `<strong>Total: $${totalPrice.toFixed(2)} (${quantity} ${quantity === 1 ? 'pin' : 'pines'})</strong>`;
+          totalPriceDiv.style.display = 'block';
+        }
       } else {
         totalPriceDiv.style.display = 'none';
       }
     }
     
-    // Actualizar precio total cuando cambie la cantidad
+    // Actualizar precio total cuando cambie la selección
     document.addEventListener('DOMContentLoaded', function() {
+      const montoSelect = document.getElementById('monto');
       const cantidadSelect = document.getElementById('cantidad');
+      
+      if (montoSelect) {
+        montoSelect.addEventListener('change', updateTotalPrice);
+      }
       if (cantidadSelect) {
         cantidadSelect.addEventListener('change', updateTotalPrice);
       }
@@ -279,18 +246,13 @@
     
     function copyAllPins() {
       const pinElements = document.querySelectorAll('.pin-code');
-      let allPins = [];
+      const allPins = Array.from(pinElements).map(el => el.textContent).join('\n');
       
-      pinElements.forEach(function(element) {
-        allPins.push(element.textContent);
-      });
-      
-      const allPinsText = allPins.join('\n');
-      
-      navigator.clipboard.writeText(allPinsText).then(function() {
+      navigator.clipboard.writeText(allPins).then(function() {
+        // Cambiar el botón temporalmente para mostrar confirmación
         const copyAllBtn = document.querySelector('.copy-all-btn');
         const originalText = copyAllBtn.textContent;
-        copyAllBtn.textContent = '✅ Copiados';
+        copyAllBtn.textContent = '✅ ¡Todos Copiados!';
         copyAllBtn.style.background = '#28a745';
         
         setTimeout(function() {
@@ -298,10 +260,10 @@
           copyAllBtn.style.background = '';
         }, 2000);
       }).catch(function(err) {
-        console.error('Error al copiar todos: ', err);
-        // Fallback
+        console.error('Error al copiar todos los pines: ', err);
+        // Fallback para navegadores más antiguos
         const textArea = document.createElement('textarea');
-        textArea.value = allPinsText;
+        textArea.value = allPins;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
@@ -309,7 +271,7 @@
         
         const copyAllBtn = document.querySelector('.copy-all-btn');
         const originalText = copyAllBtn.textContent;
-        copyAllBtn.textContent = '✅ Copiados';
+        copyAllBtn.textContent = '✅ ¡Todos Copiados!';
         copyAllBtn.style.background = '#28a745';
         
         setTimeout(function() {

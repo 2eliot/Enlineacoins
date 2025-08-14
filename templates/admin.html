@@ -129,12 +129,17 @@
             <h3>Agregar Pin Individual</h3>
             <form method="POST" action="/admin/add_pin" class="admin-form">
               <div class="form-group">
+                <label for="game_type_single">🎮 Juego:</label>
+                <select id="game_type_single" name="game_type" onchange="updateSinglePinPackages()" required>
+                  <option value="">Seleccione juego</option>
+                  <option value="freefire_latam">Free Fire Latam</option>
+                  <option value="freefire_global">Free Fire</option>
+                </select>
+              </div>
+              <div class="form-group">
                 <label for="monto_id">Tipo de Paquete:</label>
-                <select id="monto_id" name="monto_id" required>
+                <select id="monto_id" name="monto_id" required disabled>
                   <option value="">Seleccione paquete</option>
-                  {% for price in prices %}
-                    <option value="{{ price.id }}">{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</option>
-                  {% endfor %}
                 </select>
               </div>
               <div class="form-group">
@@ -151,12 +156,17 @@
             <p class="batch-info">Agregue hasta 10 pines a la vez. Separe cada pin con una línea nueva o coma.</p>
             <form method="POST" action="/admin/add_pins_batch" class="admin-form">
               <div class="form-group">
+                <label for="game_type_batch">🎮 Juego:</label>
+                <select id="game_type_batch" name="game_type" onchange="updateBatchPinPackages()" required>
+                  <option value="">Seleccione juego</option>
+                  <option value="freefire_latam">Free Fire Latam</option>
+                  <option value="freefire_global">Free Fire</option>
+                </select>
+              </div>
+              <div class="form-group">
                 <label for="batch_monto_id">Tipo de Paquete:</label>
-                <select id="batch_monto_id" name="batch_monto_id" required>
+                <select id="batch_monto_id" name="batch_monto_id" required disabled>
                   <option value="">Seleccione paquete</option>
-                  {% for price in prices %}
-                    <option value="{{ price.id }}">{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</option>
-                  {% endfor %}
                 </select>
               </div>
               <div class="form-group">
@@ -170,68 +180,97 @@
         </div>
       </div>
 
+        <!-- Stock de Pines por Juego -->
         <div class="pin-stock">
-        <h3>📦 Stock de Pines y Configuración de Fuentes</h3>
-        <div class="stock-grid">
-          {% for price in prices %}
-          <div class="stock-item">
-            <div class="stock-info">
-              <span>{{ price.nombre }} / ${{ "%.2f"|format(price.precio) }}</span>
-              <span class="stock-count">{{ pin_stock.get(price.id, 0) }} pines</span>
-            </div>
-            
-            <!-- Toggle de configuración de fuente -->
-            <div class="source-config">
-              <label class="source-label">Fuente para usuarios:</label>
-              <div class="source-toggle-group">
-                <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
-                  <input type="hidden" name="monto_id" value="{{ price.id }}">
-                  <input type="hidden" name="fuente" value="local">
-                  <button type="submit" class="btn btn-source-toggle btn-local {% if pin_sources_config.get(price.id) == 'local' %}active{% endif %}" 
-                          title="Los usuarios obtendrán pines del stock local">
-                    📦 Stock Local {% if pin_sources_config.get(price.id) == 'local' %}✓{% endif %}
-                  </button>
-                </form>
+          <h3>📦 Stock de Pines por Juego</h3>
+          
+          <!-- Free Fire LATAM -->
+          <div class="game-stock-section">
+            <h4>🔥 Free Fire LATAM</h4>
+            <div class="stock-grid">
+              {% for price in prices %}
+              <div class="stock-item">
+                <div class="stock-info">
+                  <span class="package-name">{{ price.nombre }}</span>
+                  <span class="package-price">${{ "%.2f"|format(price.precio) }}</span>
+                  <span class="stock-count">{{ pin_stock.get(price.id, 0) }} pines</span>
+                </div>
                 
-                <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
-                  <input type="hidden" name="monto_id" value="{{ price.id }}">
-                  <input type="hidden" name="fuente" value="api_externa">
-                  <button type="submit" class="btn btn-source-toggle btn-api {% if pin_sources_config.get(price.id) == 'api_externa' %}active{% endif %}" 
-                          title="Los usuarios obtendrán pines directamente de la API externa">
-                    🌐 API Externa {% if pin_sources_config.get(price.id) == 'api_externa' %}✓{% endif %}
-                  </button>
-                </form>
+                <!-- Toggle de configuración de fuente -->
+                <div class="source-config">
+                  <label class="source-label">Fuente:</label>
+                  <div class="source-toggle-group">
+                    <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
+                      <input type="hidden" name="monto_id" value="{{ price.id }}">
+                      <input type="hidden" name="fuente" value="local">
+                      <button type="submit" class="btn btn-source-toggle btn-local {% if pin_sources_config.get(price.id) == 'local' %}active{% endif %}" 
+                              title="Los usuarios obtendrán pines del stock local">
+                        📦 Local {% if pin_sources_config.get(price.id) == 'local' %}✓{% endif %}
+                      </button>
+                    </form>
+                    
+                    <form method="POST" action="/admin/toggle_pin_source" class="source-toggle-form">
+                      <input type="hidden" name="monto_id" value="{{ price.id }}">
+                      <input type="hidden" name="fuente" value="api_externa">
+                      <button type="submit" class="btn btn-source-toggle btn-api {% if pin_sources_config.get(price.id) == 'api_externa' %}active{% endif %}" 
+                              title="Los usuarios obtendrán pines directamente de la API externa">
+                        🌐 API {% if pin_sources_config.get(price.id) == 'api_externa' %}✓{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
+              {% endfor %}
             </div>
-            
           </div>
-          {% endfor %}
-        </div>
-        
-        <!-- Estado de API Externa -->
-        <div class="api-status-section">
-          <h4>🌐 Estado de API Externa</h4>
-          <div class="api-status-info">
-            <p>La API externa permite obtener pines automáticamente cuando el stock local está bajo.</p>
-            <form method="POST" action="/admin/test_external_api" class="test-api-form">
-              <button type="submit" class="btn btn-test-api">🧪 Probar Conexión API</button>
-            </form>
-          </div>
-        </div>
-        
-        <!-- Herramientas de mantenimiento -->
-        <div class="pin-maintenance">
-          <h3>🔧 Herramientas de Mantenimiento</h3>
-          <div class="maintenance-actions">
-            <form method="POST" action="/admin/remove_duplicates" class="maintenance-form" onsubmit="return confirm('¿Estás seguro de eliminar todos los pines duplicados? Esta acción no se puede deshacer.')">
-              <div class="maintenance-info">
-                <p>🗑️ <strong>Eliminar Pines Duplicados</strong></p>
-                <small>Esta función eliminará automáticamente todos los pines duplicados de la base de datos, manteniendo solo el más reciente de cada código único por paquete.</small>
+          
+          <!-- Free Fire Global -->
+          <div class="game-stock-section">
+            <h4>🎮 Free Fire</h4>
+            <div class="stock-grid">
+              {% for price in freefire_global_prices %}
+              <div class="stock-item">
+                <div class="stock-info">
+                  <span class="package-name">{{ price.nombre }}</span>
+                  <span class="package-price">${{ "%.2f"|format(price.precio) }}</span>
+                  <span class="stock-count">{{ pin_stock_freefire_global.get(price.id, 0) }} pines</span>
+                </div>
+                
+                <div class="source-config">
+                  <label class="source-label">Fuente:</label>
+                  <div class="source-info">
+                    <span class="source-badge">📦 Solo Local</span>
+                  </div>
+                </div>
               </div>
-              <button type="submit" class="btn btn-maintenance">🗑️ Eliminar Duplicados</button>
-            </form>
+              {% endfor %}
+            </div>
           </div>
-        </div>
+          
+          <!-- Estado de API Externa -->
+          <div class="api-status-section">
+            <h4>🌐 Estado de API Externa (Solo Free Fire LATAM)</h4>
+            <div class="api-status-info">
+              <p>La API externa permite obtener pines automáticamente cuando el stock local está bajo.</p>
+              <form method="POST" action="/admin/test_external_api" class="test-api-form">
+                <button type="submit" class="btn btn-test-api">🧪 Probar Conexión API</button>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Herramientas de mantenimiento -->
+          <div class="pin-maintenance">
+            <h3>🔧 Herramientas de Mantenimiento</h3>
+            <div class="maintenance-actions">
+              <form method="POST" action="/admin/remove_duplicates" class="maintenance-form" onsubmit="return confirm('¿Estás seguro de eliminar todos los pines duplicados? Esta acción no se puede deshacer.')">
+                <div class="maintenance-info">
+                  <p>🗑️ <strong>Eliminar Pines Duplicados</strong></p>
+                  <small>Esta función eliminará automáticamente todos los pines duplicados de la base de datos, manteniendo solo el más reciente de cada código único por paquete.</small>
+                </div>
+                <button type="submit" class="btn btn-maintenance">🗑️ Eliminar Duplicados</button>
+              </form>
+            </div>
+          </div>
         </div>
         </section>
       </div>
@@ -248,15 +287,15 @@
               
               <form method="POST" action="/admin/update_price" class="price-selector-form">
                 <div class="form-row">
-                  <div class="form-group">
-                    <label for="game_select">🎮 Juego:</label>
-                    <select id="game_select" onchange="updatePackages()">
-                      <option value="freefire">Free Fire Latam</option>
-                      <option value="bloodstriker">Blood Striker</option>
-                      <option value="freefire_global" disabled>Free Fire Global (Próximamente)</option>
-                      <option value="other_games" disabled>Otros Juegos (Próximamente)</option>
-                    </select>
-                  </div>
+              <div class="form-group">
+                <label for="game_select">🎮 Juego:</label>
+                <select id="game_select" onchange="updatePackages()">
+                  <option value="freefire">Free Fire Latam</option>
+                  <option value="freefire_global">Free Fire</option>
+                  <option value="bloodstriker">Blood Striker</option>
+                  <option value="other_games" disabled>Otros Juegos (Próximamente)</option>
+                </select>
+              </div>
                   
                   <div class="form-group">
                     <label for="package_select">📦 Paquete:</label>
@@ -397,6 +436,31 @@
     </div>
   </main>
 
+  <!-- Datos embebidos para JavaScript -->
+  <script type="application/json" id="freefire-latam-data">
+    [
+      {% for price in prices %}
+      {
+        "id": {{ price.id }},
+        "nombre": "{{ price.nombre }}",
+        "precio": {{ price.precio }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  </script>
+
+  <script type="application/json" id="freefire-global-data">
+    [
+      {% for price in freefire_global_prices %}
+      {
+        "id": {{ price.id }},
+        "nombre": "{{ price.nombre }}",
+        "precio": {{ price.precio }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  </script>
+
   <script>
     // Auto-ocultar mensajes flash después de 2 segundos
     setTimeout(function() {
@@ -451,51 +515,113 @@
       }
     }
 
-    // Actualizar paquetes según el juego
+    // Datos de paquetes desde elementos HTML
+    const freefireLatamPackages = JSON.parse(document.getElementById('freefire-latam-data').textContent);
+    const freefireGlobalPackages = JSON.parse(document.getElementById('freefire-global-data').textContent);
+    const bloodstrikerPackages = [];
+
+    // Funciones para actualizar paquetes con datos dinámicos
+    function updateSinglePinPackages() {
+      const gameSelect = document.getElementById('game_type_single');
+      const packageSelect = document.getElementById('monto_id');
+      
+      // Limpiar opciones
+      packageSelect.innerHTML = '<option value="">Seleccione paquete</option>';
+      
+      if (gameSelect.value === 'freefire_latam') {
+        packageSelect.disabled = false;
+        freefireLatamPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'freefire_global') {
+        packageSelect.disabled = false;
+        freefireGlobalPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else {
+        packageSelect.disabled = true;
+      }
+    }
+
+    function updateBatchPinPackages() {
+      const gameSelect = document.getElementById('game_type_batch');
+      const packageSelect = document.getElementById('batch_monto_id');
+      
+      // Limpiar opciones
+      packageSelect.innerHTML = '<option value="">Seleccione paquete</option>';
+      
+      if (gameSelect.value === 'freefire_latam') {
+        packageSelect.disabled = false;
+        freefireLatamPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'freefire_global') {
+        packageSelect.disabled = false;
+        freefireGlobalPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else {
+        packageSelect.disabled = true;
+      }
+    }
+
+    // Función para actualizar paquetes en gestión de precios
     function updatePackages() {
       const gameSelect = document.getElementById('game_select');
       const packageSelect = document.getElementById('package_select');
       const priceForm = packageSelect.closest('form');
       
-      // Limpiar opciones actuales
+      // Limpiar opciones
       packageSelect.innerHTML = '<option value="">Seleccione un paquete</option>';
       
       if (gameSelect.value === 'freefire') {
         priceForm.action = '/admin/update_price';
         packageSelect.disabled = false;
-        
-        // Restaurar opciones de Free Fire
-        packageSelect.innerHTML = `
-          <option value="">Seleccione un paquete</option>
-          {% for price in prices %}
-          <option value="{{ price.id }}" 
-                  data-current-price="{{ price.precio }}" 
-                  data-name="{{ price.nombre }}" 
-                  data-description="{{ price.descripcion }}">
-            {{ price.nombre }}
-          </option>
-          {% endfor %}
-        `;
-        
+        freefireLatamPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.setAttribute('data-description', 'Free Fire LATAM - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'freefire_global') {
+        priceForm.action = '/admin/update_freefire_global_price';
+        packageSelect.disabled = false;
+        freefireGlobalPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.setAttribute('data-description', 'Free Fire - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
       } else if (gameSelect.value === 'bloodstriker') {
         priceForm.action = '/admin/update_bloodstriker_price';
         packageSelect.disabled = false;
-        
-        // Restaurar opciones de Blood Striker
-        packageSelect.innerHTML = `
-          <option value="">Seleccione un paquete</option>
-          {% if bloodstriker_prices %}
-          {% for price in bloodstriker_prices %}
-          <option value="{{ price.id }}" 
-                  data-current-price="{{ price.precio }}" 
-                  data-name="{{ price.nombre }}" 
-                  data-description="{{ price.descripcion }}">
-            {{ price.nombre }}
-          </option>
-          {% endfor %}
-          {% endif %}
-        `;
-        
+        bloodstrikerPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.setAttribute('data-description', 'Blood Striker - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
       } else {
         packageSelect.disabled = true;
         priceForm.action = '/admin/update_price';

@@ -78,7 +78,7 @@ def init_db():
         )
     ''')
     
-    # Tabla de pines de Free Fire
+    # Tabla de pines de Free Fire LATAM
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pines_freefire (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,6 +89,32 @@ def init_db():
             fecha_usado DATETIME NULL,
             usuario_id INTEGER NULL,
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Tabla de pines de Free Fire (nuevo juego)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pines_freefire_global (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            monto_id INTEGER NOT NULL,
+            pin_codigo TEXT NOT NULL,
+            usado BOOLEAN DEFAULT FALSE,
+            fecha_agregado DATETIME DEFAULT CURRENT_TIMESTAMP,
+            fecha_usado DATETIME NULL,
+            usuario_id INTEGER NULL,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Tabla de precios de Free Fire (nuevo juego)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS precios_freefire_global (
+            id INTEGER PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            precio REAL NOT NULL,
+            descripcion TEXT NOT NULL,
+            activo BOOLEAN DEFAULT TRUE,
+            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -194,6 +220,22 @@ def init_db():
             INSERT INTO precios_bloodstriker (id, nombre, precio, descripcion, activo)
             VALUES (?, ?, ?, ?, ?)
         ''', precios_bloodstriker)
+    
+    # Insertar precios de Free Fire Global por defecto si no existen
+    cursor.execute('SELECT COUNT(*) FROM precios_freefire_global')
+    if cursor.fetchone()[0] == 0:
+        precios_freefire_global = [
+            (1, '100+10 💎', 0.86, '100+10 Diamantes Free Fire', True),
+            (2, '310+31 💎', 2.90, '310+31 Diamantes Free Fire', True),
+            (3, '520+52 💎', 4.00, '520+52 Diamantes Free Fire', True),
+            (4, '1.060+106 💎', 7.75, '1.060+106 Diamantes Free Fire', True),
+            (5, '2.180+218 💎', 15.30, '2.180+218 Diamantes Free Fire', True),
+            (6, '5.600+560 💎', 38.00, '5.600+560 Diamantes Free Fire', True)
+        ]
+        cursor.executemany('''
+            INSERT INTO precios_freefire_global (id, nombre, precio, descripcion, activo)
+            VALUES (?, ?, ?, ?, ?)
+        ''', precios_freefire_global)
     
     conn.commit()
     conn.close()
@@ -1262,7 +1304,9 @@ def admin_panel():
     
     users = get_all_users()
     pin_stock = get_pin_stock()
+    pin_stock_freefire_global = get_pin_stock_freefire_global()
     prices = get_all_prices()
+    freefire_global_prices = get_all_freefire_global_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
     pin_sources_config = get_pin_source_config()
     noticias = get_all_news()
@@ -1270,7 +1314,9 @@ def admin_panel():
     return render_template('admin.html', 
                          users=users, 
                          pin_stock=pin_stock, 
+                         pin_stock_freefire_global=pin_stock_freefire_global,
                          prices=prices, 
+                         freefire_global_prices=freefire_global_prices,
                          bloodstriker_prices=bloodstriker_prices,
                          pin_sources_config=pin_sources_config,
                          noticias=noticias)
@@ -1333,20 +1379,31 @@ def admin_add_pin():
     
     monto_id = request.form.get('monto_id')
     pin_codigo = request.form.get('pin_codigo')
+    game_type = request.form.get('game_type')
     
-    if monto_id and pin_codigo:
-        add_pin_freefire(int(monto_id), pin_codigo)
-        
-        # Obtener información del paquete dinámicamente
-        packages_info = get_package_info_with_prices()
-        package_info = packages_info.get(int(monto_id), {})
+    if monto_id and pin_codigo and game_type:
+        if game_type == 'freefire_latam':
+            add_pin_freefire(int(monto_id), pin_codigo)
+            # Obtener información del paquete dinámicamente
+            packages_info = get_package_info_with_prices()
+            package_info = packages_info.get(int(monto_id), {})
+            juego_nombre = "Free Fire Latam"
+        elif game_type == 'freefire_global':
+            add_pin_freefire_global(int(monto_id), pin_codigo)
+            # Obtener información del paquete dinámicamente
+            packages_info = get_freefire_global_prices()
+            package_info = packages_info.get(int(monto_id), {})
+            juego_nombre = "Free Fire"
+        else:
+            flash('Tipo de juego inválido', 'error')
+            return redirect('/admin')
         
         if package_info:
             paquete_nombre = f"{package_info['nombre']} / ${package_info['precio']:.2f}"
         else:
             paquete_nombre = "Paquete desconocido"
         
-        flash(f'Pin agregado exitosamente para {paquete_nombre}', 'success')
+        flash(f'Pin agregado exitosamente para {juego_nombre} - {paquete_nombre}', 'success')
     else:
         flash('Datos inválidos para agregar pin', 'error')
     
@@ -1360,8 +1417,9 @@ def admin_add_pins_batch():
     
     monto_id = request.form.get('batch_monto_id')
     pins_text = request.form.get('pins_batch')
+    game_type = request.form.get('game_type')
     
-    if not monto_id or not pins_text:
+    if not monto_id or not pins_text or not game_type:
         flash('Por favor complete todos los campos para el lote de pines', 'error')
         return redirect('/admin')
     
@@ -1376,21 +1434,29 @@ def admin_add_pins_batch():
         flash('No se encontraron pines válidos en el texto', 'error')
         return redirect('/admin')
     
-    # Sin límite de pines por lote
-    
     try:
-        added_count = add_pins_batch(int(monto_id), pins_list)
-        
-        # Obtener información del paquete dinámicamente
-        packages_info = get_package_info_with_prices()
-        package_info = packages_info.get(int(monto_id), {})
+        if game_type == 'freefire_latam':
+            added_count = add_pins_batch(int(monto_id), pins_list)
+            # Obtener información del paquete dinámicamente
+            packages_info = get_package_info_with_prices()
+            package_info = packages_info.get(int(monto_id), {})
+            juego_nombre = "Free Fire Latam"
+        elif game_type == 'freefire_global':
+            added_count = add_pins_batch_freefire_global(int(monto_id), pins_list)
+            # Obtener información del paquete dinámicamente
+            packages_info = get_freefire_global_prices()
+            package_info = packages_info.get(int(monto_id), {})
+            juego_nombre = "Free Fire"
+        else:
+            flash('Tipo de juego inválido', 'error')
+            return redirect('/admin')
         
         if package_info:
             paquete_nombre = f"{package_info['nombre']} / ${package_info['precio']:.2f}"
         else:
             paquete_nombre = "Paquete desconocido"
         
-        flash(f'Se agregaron {added_count} pines exitosamente para {paquete_nombre}', 'success')
+        flash(f'Se agregaron {added_count} pines exitosamente para {juego_nombre} - {paquete_nombre}', 'success')
         
     except Exception as e:
         flash(f'Error al agregar pines en lote: {str(e)}', 'error')
@@ -1937,6 +2003,45 @@ def admin_update_bloodstriker_price():
     
     return redirect('/admin')
 
+@app.route('/admin/update_freefire_global_price', methods=['POST'])
+def admin_update_freefire_global_price():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    package_id = request.form.get('package_id')
+    new_price = request.form.get('new_price')
+    
+    if not package_id or not new_price:
+        flash('Datos inválidos para actualizar precio', 'error')
+        return redirect('/admin')
+    
+    try:
+        new_price = float(new_price)
+        if new_price < 0:
+            flash('El precio no puede ser negativo', 'error')
+            return redirect('/admin')
+        
+        # Obtener información del paquete antes de actualizar
+        conn = get_db_connection()
+        package = conn.execute('SELECT nombre FROM precios_freefire_global WHERE id = ?', (package_id,)).fetchone()
+        conn.close()
+        
+        if not package:
+            flash('Paquete no encontrado', 'error')
+            return redirect('/admin')
+        
+        # Actualizar precio
+        update_freefire_global_price(int(package_id), new_price)
+        flash(f'Precio de Free Fire actualizado exitosamente para {package["nombre"]}: ${new_price:.2f}', 'success')
+        
+    except ValueError:
+        flash('Precio inválido. Debe ser un número válido.', 'error')
+    except Exception as e:
+        flash(f'Error al actualizar precio: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
 @app.route('/admin/approve_bloodstriker/<int:transaction_id>', methods=['POST'])
 def approve_bloodstriker_transaction(transaction_id):
     if not session.get('is_admin'):
@@ -2160,6 +2265,300 @@ def admin_delete_news():
         flash(f'Error al eliminar la noticia: {str(e)}', 'error')
     
     return redirect('/admin')
+
+# Funciones para Free Fire Global (nuevo juego)
+def add_pin_freefire_global(monto_id, pin_codigo):
+    """Añade un pin de Free Fire Global al stock"""
+    conn = get_db_connection()
+    conn.execute('''
+        INSERT INTO pines_freefire_global (monto_id, pin_codigo)
+        VALUES (?, ?)
+    ''', (monto_id, pin_codigo))
+    conn.commit()
+    conn.close()
+
+def add_pins_batch_freefire_global(monto_id, pins_list):
+    """Añade múltiples pines de Free Fire Global al stock en lote"""
+    conn = get_db_connection()
+    try:
+        for pin_codigo in pins_list:
+            pin_codigo = pin_codigo.strip()
+            if pin_codigo:  # Solo agregar si el pin no está vacío
+                conn.execute('''
+                    INSERT INTO pines_freefire_global (monto_id, pin_codigo)
+                    VALUES (?, ?)
+                ''', (monto_id, pin_codigo))
+        conn.commit()
+        return len([p for p in pins_list if p.strip()])  # Retornar cantidad agregada
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def get_pin_stock_freefire_global():
+    """Obtiene el stock de pines de Free Fire Global por monto_id"""
+    conn = get_db_connection()
+    stock = {}
+    for i in range(1, 7):  # monto_id del 1 al 6 para Free Fire Global
+        count = conn.execute('''
+            SELECT COUNT(*) FROM pines_freefire_global 
+            WHERE monto_id = ? AND usado = FALSE
+        ''', (i,)).fetchone()[0]
+        stock[i] = count
+    conn.close()
+    return stock
+
+def get_available_pin_freefire_global(monto_id):
+    """Obtiene un pin disponible de Free Fire Global para el monto especificado"""
+    conn = get_db_connection()
+    pin = conn.execute('''
+        SELECT * FROM pines_freefire_global 
+        WHERE monto_id = ? AND usado = FALSE 
+        LIMIT 1
+    ''', (monto_id,)).fetchone()
+    
+    if pin:
+        # Marcar como usado
+        conn.execute('''
+            UPDATE pines_freefire_global 
+            SET usado = TRUE, fecha_usado = CURRENT_TIMESTAMP, usuario_id = ?
+            WHERE id = ?
+        ''', (None, pin['id']))
+        conn.commit()
+    
+    conn.close()
+    return pin
+
+def get_freefire_global_prices():
+    """Obtiene información de paquetes de Free Fire Global con precios dinámicos"""
+    conn = get_db_connection()
+    packages = conn.execute('''
+        SELECT id, nombre, precio, descripcion 
+        FROM precios_freefire_global 
+        WHERE activo = TRUE 
+        ORDER BY id
+    ''').fetchall()
+    conn.close()
+    
+    # Convertir a diccionario para fácil acceso
+    package_dict = {}
+    for package in packages:
+        package_dict[package['id']] = {
+            'nombre': package['nombre'],
+            'precio': package['precio'],
+            'descripcion': package['descripcion']
+        }
+    
+    return package_dict
+
+def get_freefire_global_price_by_id(monto_id):
+    """Obtiene el precio de un paquete específico de Free Fire Global"""
+    conn = get_db_connection()
+    price = conn.execute('''
+        SELECT precio FROM precios_freefire_global 
+        WHERE id = ? AND activo = TRUE
+    ''', (monto_id,)).fetchone()
+    conn.close()
+    return price['precio'] if price else 0
+
+def update_freefire_global_price(package_id, new_price):
+    """Actualiza el precio de un paquete de Free Fire Global"""
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE precios_freefire_global 
+        SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (new_price, package_id))
+    conn.commit()
+    conn.close()
+
+def get_all_freefire_global_prices():
+    """Obtiene todos los precios de paquetes de Free Fire Global"""
+    conn = get_db_connection()
+    prices = conn.execute('''
+        SELECT * FROM precios_freefire_global 
+        ORDER BY id
+    ''').fetchall()
+    conn.close()
+    return prices
+
+# Rutas para Free Fire Global (nuevo juego)
+@app.route('/juego/freefire')
+def freefire():
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    # Actualizar saldo desde la base de datos
+    user_id = session.get('user_db_id')
+    if user_id:
+        conn = get_db_connection()
+        user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+        if user:
+            session['saldo'] = user['saldo']
+        conn.close()
+    
+    # Obtener precios dinámicos de Free Fire Global
+    prices = get_freefire_global_prices()
+    
+    # Verificar si hay una compra exitosa para mostrar (solo una vez)
+    compra_exitosa = False
+    compra_data = {}
+    
+    # Solo mostrar compra exitosa si viene del redirect POST y hay datos en sesión
+    if request.args.get('compra') == 'exitosa' and 'compra_freefire_global_exitosa' in session:
+        compra_exitosa = True
+        compra_data = session.pop('compra_freefire_global_exitosa')  # Remover después de usar
+    
+    return render_template('freefire.html', 
+                         user_id=session.get('id', '00000'),
+                         balance=session.get('saldo', 0),
+                         prices=prices,
+                         compra_exitosa=compra_exitosa,
+                         **compra_data)
+
+@app.route('/validar/freefire', methods=['POST'])
+def validar_freefire():
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    monto_id = request.form.get('monto')
+    cantidad = request.form.get('cantidad', '1')
+    
+    if not monto_id:
+        flash('Por favor selecciona un paquete', 'error')
+        return redirect('/juego/freefire')
+    
+    try:
+        monto_id = int(monto_id)
+        cantidad = int(cantidad)
+        
+        # Validar cantidad (entre 1 y 5)
+        if cantidad < 1 or cantidad > 5:
+            flash('La cantidad debe estar entre 1 y 5 pines', 'error')
+            return redirect('/juego/freefire')
+    except ValueError:
+        flash('Datos inválidos', 'error')
+        return redirect('/juego/freefire')
+    
+    user_id = session.get('user_db_id')
+    is_admin = session.get('is_admin', False)
+    
+    # Obtener precio dinámico de la base de datos
+    precio_unitario = get_freefire_global_price_by_id(monto_id)
+    precio_total = precio_unitario * cantidad
+    
+    # Obtener información del paquete
+    packages_info = get_freefire_global_prices()
+    package_info = packages_info.get(monto_id, {})
+    
+    paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}" if cantidad > 1 else package_info.get('nombre', 'Paquete')
+    
+    if precio_unitario == 0:
+        flash('Paquete no encontrado o inactivo', 'error')
+        return redirect('/juego/freefire')
+    
+    saldo_actual = session.get('saldo', 0)
+    
+    # Solo verificar saldo para usuarios normales, admin puede comprar sin saldo
+    if not is_admin and saldo_actual < precio_total:
+        flash(f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
+        return redirect('/juego/freefire')
+    
+    # Verificar stock local disponible para la cantidad solicitada
+    conn = get_db_connection()
+    stock_disponible = conn.execute('''
+        SELECT COUNT(*) FROM pines_freefire_global 
+        WHERE monto_id = ? AND usado = FALSE
+    ''', (monto_id,)).fetchone()[0]
+    conn.close()
+    
+    if stock_disponible < cantidad:
+        flash(f'Stock insuficiente. Solo hay {stock_disponible} pines disponibles para este paquete.', 'error')
+        return redirect('/juego/freefire')
+    
+    # Obtener los pines necesarios
+    pines_obtenidos = []
+    for i in range(cantidad):
+        pin_disponible = get_available_pin_freefire_global(monto_id)
+        if pin_disponible:
+            pines_obtenidos.append(pin_disponible['pin_codigo'])
+        else:
+            # Si no se pueden obtener todos los pines, devolver error
+            flash('Error al obtener todos los pines solicitados.', 'error')
+            return redirect('/juego/freefire')
+    
+    # Generar datos de la transacción
+    import random
+    import string
+    numero_control = ''.join(random.choices(string.digits, k=10))
+    transaccion_id = 'FFG-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    
+    # Procesar la transacción
+    conn = get_db_connection()
+    try:
+        # Solo actualizar saldo si no es admin
+        if not is_admin:
+            conn.execute('UPDATE usuarios SET saldo = saldo - ? WHERE id = ?', (precio_total, user_id))
+        
+        # Registrar la transacción
+        pines_texto = '\n'.join(pines_obtenidos)
+        
+        # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
+        monto_transaccion = 0 if is_admin else -precio_total
+        
+        conn.execute('''
+            INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
+        
+        # Limitar transacciones a 20 por usuario
+        conn.execute('''
+            DELETE FROM transacciones 
+            WHERE usuario_id = ? AND id NOT IN (
+                SELECT id FROM transacciones 
+                WHERE usuario_id = ? 
+                ORDER BY fecha DESC 
+                LIMIT 20
+            )
+        ''', (user_id, user_id))
+        
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        flash('Error al procesar la transacción. Intente nuevamente.', 'error')
+        return redirect('/juego/freefire')
+    finally:
+        conn.close()
+    
+    # Actualizar saldo en sesión solo si no es admin
+    if not is_admin:
+        session['saldo'] = saldo_actual - precio_total
+    
+    # Guardar datos de la compra en la sesión para mostrar después del redirect
+    if cantidad == 1:
+        # Para un solo pin
+        session['compra_freefire_global_exitosa'] = {
+            'paquete_nombre': paquete_nombre,
+            'monto_compra': precio_total,
+            'numero_control': numero_control,
+            'pin': pines_obtenidos[0],
+            'transaccion_id': transaccion_id
+        }
+    else:
+        # Para múltiples pines
+        session['compra_freefire_global_exitosa'] = {
+            'paquete_nombre': paquete_nombre,
+            'monto_compra': precio_total,
+            'numero_control': numero_control,
+            'pines_list': pines_obtenidos,
+            'transaccion_id': transaccion_id,
+            'cantidad_comprada': cantidad
+        }
+    
+    # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
+    return redirect('/juego/freefire?compra=exitosa')
 
 @app.route('/logout')
 def logout():

@@ -29,6 +29,7 @@
         <p class="menu-title">🎮 Juegos</p>
         <ul>
           <li><a href="/juego/freefire_latam">Free Fire Latam</a></li>
+          <li><a href="/juego/freefire">Free Fire</a></li>
           <li><a href="/juego/bloodstriker">Blood Striker</a></li>
         </ul>
       </div>
@@ -45,6 +46,9 @@
           <p><strong>Apellido:</strong> {{ session.get('apellido', '---') }}</p>
           <p><strong>Correo:</strong> {{ session.get('usuario', '---') }}</p>
           <p><strong>ID:</strong> {{ user_id }}</p>
+          {% if session.get('is_admin') %}
+          <a href="/admin" class="admin-btn">Panel Admin</a>
+          {% endif %}
           <a href="/logout" class="logout-btn">Cerrar sesión</a>
         </div>
       </div>
@@ -128,6 +132,24 @@
     function toggleMenu() {
       document.getElementById("menu-juegos").classList.toggle("visible");
     }
+    
+    // Cerrar menús al hacer clic fuera de ellos
+    document.addEventListener('click', function(event) {
+      const userBox = document.getElementById('user-box');
+      const userIcon = document.querySelector('.user-icon');
+      const menuJuegos = document.getElementById('menu-juegos');
+      const hamburger = document.querySelector('.hamburger');
+      
+      // Cerrar user-box si se hace clic fuera
+      if (userBox && userIcon && !userIcon.contains(event.target)) {
+        userBox.classList.remove('visible');
+      }
+      
+      // Cerrar menu-juegos si se hace clic fuera
+      if (menuJuegos && hamburger && !hamburger.contains(event.target)) {
+        menuJuegos.classList.remove('visible');
+      }
+    });
     
     // Auto-ocultar mensajes flash después de 3 segundos
     setTimeout(function() {
