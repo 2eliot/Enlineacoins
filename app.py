@@ -1656,12 +1656,16 @@ def validar_freefire_latam():
             # Registrar la transacción
             pines_texto = '\n'.join(pines_codigos)
             
-            # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
-            monto_transaccion = 0 if is_admin else -precio_total
-            
-            # Agregar información de fuente en el pin si viene de API externa
-            if 'inefable_api' in sources_used:
-                pines_texto += f"\n[Fuente: {', '.join(sources_used)}]"
+            # Para admin, registrar con monto negativo pero agregar etiqueta [ADMIN]
+            if is_admin:
+                pines_texto = f"[ADMIN - PRUEBA/GESTIÓN]\n{pines_texto}"
+                monto_transaccion = -precio_total  # Registrar monto real para mostrar en historial
+            else:
+                monto_transaccion = -precio_total
+                
+                # Agregar información de fuente en el pin si viene de API externa
+                if 'inefable_api' in sources_used:
+                    pines_texto += f"\n[Fuente: {', '.join(sources_used)}]"
             
             conn.execute('''
                 INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
@@ -2503,8 +2507,12 @@ def validar_freefire():
         # Registrar la transacción
         pines_texto = '\n'.join(pines_obtenidos)
         
-        # Para admin, registrar con monto 0 para indicar que fue una prueba/gestión
-        monto_transaccion = 0 if is_admin else -precio_total
+        # Para admin, registrar con monto negativo pero agregar etiqueta [ADMIN]
+        if is_admin:
+            pines_texto = f"[ADMIN - PRUEBA/GESTIÓN]\n{pines_texto}"
+            monto_transaccion = -precio_total  # Registrar monto real para mostrar en historial
+        else:
+            monto_transaccion = -precio_total
         
         conn.execute('''
             INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
