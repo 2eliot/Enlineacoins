@@ -451,6 +451,13 @@ def get_all_wallet_credits():
     except:
         pass  # La columna ya existe
     
+    # Agregar columna 'saldo_anterior' si no existe (para compatibilidad con datos existentes)
+    try:
+        conn.execute('ALTER TABLE creditos_billetera ADD COLUMN saldo_anterior REAL DEFAULT 0.0')
+        conn.commit()
+    except:
+        pass  # La columna ya existe
+    
     try:
         credits = conn.execute('''
             SELECT cb.*, u.nombre, u.apellido, u.correo 
@@ -930,19 +937,31 @@ def add_credit_to_user(user_id, amount):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
             monto REAL DEFAULT 0.0,
+            saldo_anterior REAL DEFAULT 0.0,
             fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         )
     ''')
     
+    # Agregar columna 'saldo_anterior' si no existe (para compatibilidad con datos existentes)
+    try:
+        conn.execute('ALTER TABLE creditos_billetera ADD COLUMN saldo_anterior REAL DEFAULT 0.0')
+        conn.commit()
+    except:
+        pass  # La columna ya existe
+    
+    # Obtener saldo actual del usuario antes de agregar el crédito
+    user_data = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+    saldo_anterior = user_data['saldo'] if user_data else 0.0
+    
     # Actualizar saldo del usuario
     conn.execute('UPDATE usuarios SET saldo = saldo + ? WHERE id = ?', (amount, user_id))
     
-    # Registrar en créditos de billetera (solo monto y fecha)
+    # Registrar en créditos de billetera (monto, fecha y saldo anterior)
     conn.execute('''
-        INSERT INTO creditos_billetera (usuario_id, monto)
-        VALUES (?, ?)
-    ''', (user_id, amount))
+        INSERT INTO creditos_billetera (usuario_id, monto, saldo_anterior)
+        VALUES (?, ?, ?)
+    ''', (user_id, amount, saldo_anterior))
     
     # Limitar créditos de billetera a 10 por usuario - eliminar los más antiguos si hay más de 10
     conn.execute('''

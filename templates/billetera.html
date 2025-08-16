@@ -71,7 +71,12 @@
             </div>
             <div class="transaction-footer">
               <span class="date-simple">{{ credit.fecha.split(' ')[0] }} {{ credit.fecha.split(' ')[1].split('.')[0] }}</span>
-              <span class="user-simple">{{ credit.correo }}</span>
+              <span class="user-simple">
+                {{ credit.correo }}
+                {% if credit.saldo_anterior is defined and credit.saldo_anterior is not none %}
+                  | Saldo anterior: ${{ "%.2f"|format(credit.saldo_anterior) }}
+                {% endif %}
+              </span>
             </div>
           </div>
           {% endfor %}
