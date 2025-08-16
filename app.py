@@ -328,21 +328,25 @@ def get_user_transactions(user_id, is_admin=False, page=1, per_page=10):
         ''').fetchone()[0]
     else:
         # Usuario normal ve solo sus transacciones
-        transactions = conn.execute('''
-            SELECT t.*, u.nombre, u.apellido
-            FROM transacciones t
-            JOIN usuarios u ON t.usuario_id = u.id
-            WHERE t.usuario_id = ? 
-            ORDER BY t.fecha DESC
-            LIMIT ? OFFSET ?
-        ''', (user_id, per_page, offset)).fetchall()
-        
-        # Obtener total de transacciones del usuario para paginación
-        total_count = conn.execute('''
-            SELECT COUNT(*) FROM transacciones t
-            JOIN usuarios u ON t.usuario_id = u.id
-            WHERE t.usuario_id = ?
-        ''', (user_id,)).fetchone()[0]
+        if user_id:
+            transactions = conn.execute('''
+                SELECT t.*, u.nombre, u.apellido
+                FROM transacciones t
+                JOIN usuarios u ON t.usuario_id = u.id
+                WHERE t.usuario_id = ? 
+                ORDER BY t.fecha DESC
+                LIMIT ? OFFSET ?
+            ''', (user_id, per_page, offset)).fetchall()
+            
+            # Obtener total de transacciones del usuario para paginación
+            total_count = conn.execute('''
+                SELECT COUNT(*) FROM transacciones t
+                JOIN usuarios u ON t.usuario_id = u.id
+                WHERE t.usuario_id = ?
+            ''', (user_id,)).fetchone()[0]
+        else:
+            transactions = []
+            total_count = 0
     
     # Obtener precios dinámicos de la base de datos (Free Fire y Blood Striker)
     packages_info = get_package_info_with_prices()
@@ -424,6 +428,91 @@ def get_user_wallet_credits(user_id):
     ''', (user_id,)).fetchall()
     conn.close()
     return credits
+
+def get_all_wallet_credits():
+    """Obtiene todos los créditos de billetera del sistema para el admin"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS creditos_billetera (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            monto REAL DEFAULT 0.0,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            visto BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Agregar columna 'visto' si no existe (para compatibilidad con datos existentes)
+    try:
+        conn.execute('ALTER TABLE creditos_billetera ADD COLUMN visto BOOLEAN DEFAULT FALSE')
+        conn.commit()
+    except:
+        pass  # La columna ya existe
+    
+    try:
+        credits = conn.execute('''
+            SELECT cb.*, u.nombre, u.apellido, u.correo 
+            FROM creditos_billetera cb
+            JOIN usuarios u ON cb.usuario_id = u.id
+            ORDER BY cb.fecha DESC
+            LIMIT 100
+        ''').fetchall()
+    except Exception as e:
+        print(f"Error al obtener créditos de billetera: {e}")
+        credits = []
+    
+    conn.close()
+    return credits
+
+def get_wallet_credits_stats():
+    """Obtiene estadísticas de créditos de billetera para el admin"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS creditos_billetera (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            monto REAL DEFAULT 0.0,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            visto BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    try:
+        # Total de créditos agregados
+        total_credits = conn.execute('''
+            SELECT COALESCE(SUM(monto), 0) as total FROM creditos_billetera
+        ''').fetchone()['total']
+        
+        # Créditos agregados hoy
+        today_credits = conn.execute('''
+            SELECT COALESCE(SUM(monto), 0) as today_total 
+            FROM creditos_billetera 
+            WHERE DATE(fecha) = DATE('now')
+        ''').fetchone()['today_total']
+        
+        # Número de usuarios que han recibido créditos
+        users_with_credits = conn.execute('''
+            SELECT COUNT(DISTINCT usuario_id) as count FROM creditos_billetera
+        ''').fetchone()['count']
+        
+        conn.close()
+        return {
+            'total_credits': total_credits,
+            'today_credits': today_credits,
+            'users_with_credits': users_with_credits
+        }
+    except Exception as e:
+        print(f"Error al obtener estadísticas de créditos: {e}")
+        conn.close()
+        return {
+            'total_credits': 0,
+            'today_credits': 0,
+            'users_with_credits': 0
+        }
 
 def get_unread_wallet_credits_count(user_id):
     """Obtiene si hay créditos de billetera no vistos (retorna 1 si hay, 0 si no hay)"""
@@ -1524,33 +1613,42 @@ def billetera():
     if 'usuario' not in session:
         return redirect('/auth')
     
-    # Solo usuarios normales pueden ver su billetera
-    if session.get('is_admin'):
-        flash('Los administradores no tienen billetera', 'error')
-        return redirect('/')
+    is_admin = session.get('is_admin', False)
     
-    user_id = session.get('user_db_id')
-    if not user_id:
-        flash('Error al acceder a la billetera', 'error')
-        return redirect('/')
-    
-    # Marcar todas las notificaciones de cartera como vistas
-    mark_wallet_credits_as_read(user_id)
-    
-    # Obtener créditos de billetera
-    wallet_credits = get_user_wallet_credits(user_id)
-    
-    # Actualizar saldo
-    conn = get_db_connection()
-    user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
-    if user:
-        session['saldo'] = user['saldo']
-    conn.close()
-    
-    return render_template('billetera.html', 
-                         wallet_credits=wallet_credits, 
-                         user_id=session.get('id', '00000'),
-                         balance=session.get('saldo', 0))
+    if is_admin:
+        # Admin ve todos los créditos agregados a usuarios
+        wallet_credits = get_all_wallet_credits()
+        
+        return render_template('billetera.html', 
+                             wallet_credits=wallet_credits,
+                             user_id=session.get('id', '00000'),
+                             balance=0,
+                             is_admin=True)
+    else:
+        # Usuario normal ve solo sus créditos de billetera
+        user_id = session.get('user_db_id')
+        if not user_id:
+            flash('Error al acceder a la billetera', 'error')
+            return redirect('/')
+        
+        # Marcar todas las notificaciones de cartera como vistas
+        mark_wallet_credits_as_read(user_id)
+        
+        # Obtener créditos de billetera del usuario
+        wallet_credits = get_user_wallet_credits(user_id)
+        
+        # Actualizar saldo
+        conn = get_db_connection()
+        user = conn.execute('SELECT saldo FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+        if user:
+            session['saldo'] = user['saldo']
+        conn.close()
+        
+        return render_template('billetera.html', 
+                             wallet_credits=wallet_credits, 
+                             user_id=session.get('id', '00000'),
+                             balance=session.get('saldo', 0),
+                             is_admin=False)
 
 
 @app.route('/validar/freefire_latam', methods=['POST'])

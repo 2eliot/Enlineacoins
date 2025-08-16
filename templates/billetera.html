@@ -44,54 +44,99 @@
     </div>
   </header>
 
-  <!-- Panel del usuario -->
-  <section class="user-panel">
-    <p>💰 Mi Billetera - ID {{ user_id }} &nbsp; | &nbsp; Saldo ${{ "%.2f"|format(balance) }}</p>
-  </section>
+  {% if is_admin %}
+    <!-- Panel del administrador -->
+    <section class="user-panel">
+      <p>🛠️ Cartera del Administrador - Créditos Agregados a Usuarios</p>
+    </section>
 
-  <!-- Créditos de billetera -->
-  <section class="transactions">
-    <h2 class="transaction-title">Créditos Recibidos</h2>
-    <div class="transaction-container">
-      {% if wallet_credits %}
-        {% for credit in wallet_credits %}
-        <div class="transaction-card-simple">
-          <div class="transaction-row">
-            <div class="transaction-main">
-              <div class="control-status">
-                <span class="control-num">💰 Crédito</span>
-                <span class="status-simple">✅</span>
-              </div>
-              <div class="package-cost">
-                <span class="package">Saldo agregado</span>
-                <span class="cost">${{ "%.2f"|format(credit.monto) }}</span>
+    <!-- Créditos de billetera para admin -->
+    <section class="transactions">
+      <h2 class="transaction-title">Historial de Créditos Agregados</h2>
+      <div class="transaction-container">
+        {% if wallet_credits %}
+          {% for credit in wallet_credits %}
+          <div class="transaction-card-simple">
+            <div class="transaction-row">
+              <div class="transaction-main">
+                <div class="control-status">
+                  <span class="control-num">💰 Crédito</span>
+                  <span class="status-simple">✅</span>
+                </div>
+                <div class="package-cost">
+                  <span class="package">{{ credit.nombre }} {{ credit.apellido }}</span>
+                  <span class="cost">${{ "%.2f"|format(credit.monto) }}</span>
+                </div>
               </div>
             </div>
+            <div class="transaction-footer">
+              <span class="date-simple">{{ credit.fecha.split(' ')[0] }} {{ credit.fecha.split(' ')[1].split('.')[0] }}</span>
+              <span class="user-simple">{{ credit.correo }}</span>
+            </div>
           </div>
-          <div class="transaction-footer">
-            <span class="date-simple">{{ credit.fecha.split(' ')[0] }} {{ credit.fecha.split(' ')[1].split('.')[0] }}</span>
-            <span class="user-simple">{{ session.get('nombre', '') }} {{ session.get('apellido', '') }}</span>
+          {% endfor %}
+        {% else %}
+          <div class="no-transactions">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <p>No hay créditos registrados en el sistema</p>
+            </div>
           </div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="no-transactions">
-          <div class="empty-state">
-            <svg class="empty-icon" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-            <p>No hay créditos registrados en tu billetera</p>
+        {% endif %}
+      </div>
+    </section>
+  {% else %}
+    <!-- Panel del usuario normal -->
+    <section class="user-panel">
+      <p>💰 Mi Billetera - ID {{ user_id }} &nbsp; | &nbsp; Saldo ${{ "%.2f"|format(balance) }}</p>
+    </section>
+
+    <!-- Créditos de billetera para usuario normal -->
+    <section class="transactions">
+      <h2 class="transaction-title">Créditos Recibidos</h2>
+      <div class="transaction-container">
+        {% if wallet_credits %}
+          {% for credit in wallet_credits %}
+          <div class="transaction-card-simple">
+            <div class="transaction-row">
+              <div class="transaction-main">
+                <div class="control-status">
+                  <span class="control-num">💰 Crédito</span>
+                  <span class="status-simple">✅</span>
+                </div>
+                <div class="package-cost">
+                  <span class="package">Saldo agregado</span>
+                  <span class="cost">${{ "%.2f"|format(credit.monto) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="transaction-footer">
+              <span class="date-simple">{{ credit.fecha.split(' ')[0] }} {{ credit.fecha.split(' ')[1].split('.')[0] }}</span>
+              <span class="user-simple">{{ session.get('nombre', '') }} {{ session.get('apellido', '') }}</span>
+            </div>
           </div>
-        </div>
-      {% endif %}
-    </div>
-    <div class="pagination">
-      <a href="#" class="page">«</a>
-      <a href="#" class="page active">1</a>
-      <a href="#" class="page">2</a>
-      <a href="#" class="page">»</a>
-    </div>
-  </section>
+          {% endfor %}
+        {% else %}
+          <div class="no-transactions">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <p>No hay créditos registrados en tu billetera</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      <div class="pagination">
+        <a href="#" class="page">«</a>
+        <a href="#" class="page active">1</a>
+        <a href="#" class="page">2</a>
+        <a href="#" class="page">»</a>
+      </div>
+    </section>
+  {% endif %}
 
   <script>
     function toggleUserBox() {
