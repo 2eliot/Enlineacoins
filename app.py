@@ -730,6 +730,26 @@ def index():
             # Tomar solo las primeras per_page transacciones
             transactions_data['transactions'] = all_transactions[:per_page]
         
+        # Limitar transacciones del admin a 15 páginas (150 transacciones)
+        # Solo ejecutar limpieza si estamos en la página 1 para evitar múltiples ejecuciones
+        if page == 1:
+            conn = get_db_connection()
+            try:
+                # Eliminar transacciones que excedan las 150 más recientes (15 páginas x 10 por página)
+                conn.execute('''
+                    DELETE FROM transacciones 
+                    WHERE id NOT IN (
+                        SELECT id FROM transacciones 
+                        ORDER BY fecha DESC 
+                        LIMIT 150
+                    )
+                ''')
+                conn.commit()
+            except Exception as e:
+                print(f"Error al limpiar transacciones antiguas del admin: {e}")
+            finally:
+                conn.close()
+        
         balance = 0  # Admin no tiene saldo
     else:
         # Usuario normal ve solo sus transacciones
@@ -1770,14 +1790,14 @@ def validar_freefire_latam():
                 VALUES (?, ?, ?, ?, ?)
             ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
             
-            # Limitar transacciones a 20 por usuario
+            # Limitar transacciones a 30 por usuario
             conn.execute('''
                 DELETE FROM transacciones 
                 WHERE usuario_id = ? AND id NOT IN (
                     SELECT id FROM transacciones 
                     WHERE usuario_id = ? 
                     ORDER BY fecha DESC 
-                    LIMIT 20
+                    LIMIT 30
                 )
             ''', (user_id, user_id))
             
@@ -2174,14 +2194,14 @@ def approve_bloodstriker_transaction(transaction_id):
                 bs_transaction['monto']
             ))
             
-            # Limitar transacciones a 20 por usuario
+            # Limitar transacciones a 30 por usuario
             conn.execute('''
                 DELETE FROM transacciones 
                 WHERE usuario_id = ? AND id NOT IN (
                     SELECT id FROM transacciones 
                     WHERE usuario_id = ? 
                     ORDER BY fecha DESC 
-                    LIMIT 20
+                    LIMIT 30
                 )
             ''', (bs_transaction['usuario_id'], bs_transaction['usuario_id']))
             
@@ -2617,14 +2637,14 @@ def validar_freefire():
             VALUES (?, ?, ?, ?, ?)
         ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
         
-        # Limitar transacciones a 20 por usuario
+        # Limitar transacciones a 30 por usuario
         conn.execute('''
             DELETE FROM transacciones 
             WHERE usuario_id = ? AND id NOT IN (
                 SELECT id FROM transacciones 
                 WHERE usuario_id = ? 
                 ORDER BY fecha DESC 
-                LIMIT 20
+                LIMIT 30
             )
         ''', (user_id, user_id))
         
