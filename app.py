@@ -246,11 +246,11 @@ def hash_password(password):
 
 def verify_password(password, hashed):
     """Verifica la contraseña hasheada (compatible con métodos antiguos y nuevos)"""
-    # Primero intentar con el nuevo método (PBKDF2)
-    if hashed.startswith('pbkdf2:'):
+    # Intentar con Werkzeug (maneja pbkdf2, scrypt, etc.)
+    if hashed.startswith(('pbkdf2:', 'scrypt:')):
         return check_password_hash(hashed, password)
     
-    # Si no es PBKDF2, verificar con SHA256 (método anterior)
+    # Si no es un hash de Werkzeug, verificar con SHA256 (método anterior)
     sha256_hash = hashlib.sha256(password.encode()).hexdigest()
     return hashed == sha256_hash
 
@@ -2708,6 +2708,232 @@ def validar_freefire():
 def logout():
     session.clear()
     return redirect('/auth')
+
+# ============= API SIMPLE DE CONEXIÓN =============
+
+@app.route('/api.php', methods=['GET'])
+def api_simple_endpoint():
+    """
+    API Simple de Conexión para Revendedores51
+    
+    Formato: /api.php?action=recarga&usuario=email&clave=password&tipo=recargaPinFreefire&monto=1&numero=1
+    
+    Parámetros:
+    - action: Siempre debe ser "recarga"
+    - usuario: Email del usuario
+    - clave: Contraseña del usuario
+    - tipo: Tipo de recarga (recargaPinFreefire)
+    - monto: ID del paquete (1-9)
+    - numero: Cantidad de PINs (por defecto 1, máximo 10)
+    """
+    
+    try:
+        # Obtener parámetros
+        action = request.args.get('action', '').lower()
+        usuario = request.args.get('usuario', '')
+        clave = request.args.get('clave', '')
+        tipo = request.args.get('tipo', '').lower()
+        monto = request.args.get('monto', '1')
+        numero = request.args.get('numero', '1')
+        
+        # Validar parámetros básicos
+        if not all([action, usuario, clave, tipo]):
+            return jsonify({
+                'status': 'error',
+                'code': '400',
+                'message': 'Parámetros requeridos: action, usuario, clave, tipo'
+            }), 400
+        
+        # Validar action
+        if action != 'recarga':
+            return jsonify({
+                'status': 'error',
+                'code': '400',
+                'message': 'Action debe ser "recarga"'
+            }), 400
+        
+        # Validar tipo
+        if tipo != 'recargapinfreefire':
+            return jsonify({
+                'status': 'error',
+                'code': '400',
+                'message': 'Tipo debe ser "recargaPinFreefire"'
+            }), 400
+        
+        # Validar y convertir monto (package_id)
+        try:
+            package_id = int(monto)
+            if package_id < 1 or package_id > 9:
+                return jsonify({
+                    'status': 'error',
+                    'code': '400',
+                    'message': 'Monto debe estar entre 1 y 9'
+                }), 400
+        except ValueError:
+            return jsonify({
+                'status': 'error',
+                'code': '400',
+                'message': 'Monto debe ser un número válido'
+            }), 400
+        
+        # Validar y convertir numero (quantity)
+        try:
+            quantity = int(numero) if numero else 1
+            if quantity < 1 or quantity > 10:
+                return jsonify({
+                    'status': 'error',
+                    'code': '400',
+                    'message': 'Numero debe estar entre 1 y 10'
+                }), 400
+        except ValueError:
+            return jsonify({
+                'status': 'error',
+                'code': '400',
+                'message': 'Numero debe ser un número válido'
+            }), 400
+        
+        # Autenticar usuario
+        user = get_user_by_email(usuario)
+        
+        if not user or not verify_password(clave, user['contraseña']):
+            return jsonify({
+                'status': 'error',
+                'code': '401',
+                'message': 'Credenciales incorrectas'
+            }), 401
+        
+        # Obtener información del paquete
+        packages_info = get_package_info_with_prices()
+        package_info = packages_info.get(package_id)
+        
+        if not package_info:
+            return jsonify({
+                'status': 'error',
+                'code': '404',
+                'message': 'Paquete no encontrado'
+            }), 404
+        
+        precio_unitario = package_info['precio']
+        precio_total = precio_unitario * quantity
+        saldo_actual = user['saldo']
+        
+        # Verificar saldo suficiente
+        if saldo_actual < precio_total:
+            return jsonify({
+                'status': 'error',
+                'code': '402',
+                'message': f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}'
+            }), 402
+        
+        # Usar pin manager para obtener PINs
+        pin_manager = create_pin_manager(DATABASE)
+        
+        if quantity == 1:
+            # Para un solo PIN
+            result = pin_manager.request_pin(package_id)
+            
+            if result.get('status') != 'success':
+                return jsonify({
+                    'status': 'error',
+                    'code': '503',
+                    'message': f'Sin stock disponible para este paquete'
+                }), 503
+            
+            pin_code = result.get('pin_code')
+            pins_list = [pin_code]
+        else:
+            # Para múltiples PINs
+            result = pin_manager.request_multiple_pins(package_id, quantity)
+            
+            if result.get('status') not in ['success', 'partial_success']:
+                return jsonify({
+                    'status': 'error',
+                    'code': '503',
+                    'message': f'Error al obtener PINs: {result.get("message", "Sin stock disponible")}'
+                }), 503
+            
+            pines_data = result.get('pins', [])
+            pins_list = [pin['pin_code'] for pin in pines_data]
+            
+            if len(pins_list) < quantity:
+                # Ajustar cantidad y precio si no se obtuvieron todos los PINs
+                quantity = len(pins_list)
+                precio_total = precio_unitario * quantity
+        
+        # Descontar saldo
+        conn = get_db_connection()
+        nuevo_saldo = saldo_actual - precio_total
+        conn.execute('UPDATE usuarios SET saldo = ? WHERE id = ?', (nuevo_saldo, user['id']))
+        
+        # Crear registro de transacción
+        pins_texto = '\n'.join(pins_list)
+        
+        # Generar datos de la transacción
+        numero_control = ''.join(random.choices(string.digits, k=10))
+        transaccion_id = 'API-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        
+        conn.execute('''
+            INSERT INTO transacciones (usuario_id, numero_control, pin, transaccion_id, monto)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user['id'], numero_control, pins_texto, transaccion_id, -precio_total))
+        
+        # Limitar transacciones a 30 por usuario
+        conn.execute('''
+            DELETE FROM transacciones 
+            WHERE usuario_id = ? AND id NOT IN (
+                SELECT id FROM transacciones 
+                WHERE usuario_id = ? 
+                ORDER BY fecha DESC 
+                LIMIT 30
+            )
+        ''', (user['id'], user['id']))
+        
+        conn.commit()
+        conn.close()
+        
+        # Preparar respuesta exitosa
+        response_data = {
+            'status': 'success',
+            'code': '200',
+            'message': f'{"PIN obtenido" if quantity == 1 else f"{quantity} PINs obtenidos"} exitosamente',
+            'data': {
+                'usuario': f"{user['nombre']} {user['apellido']}",
+                'email': user['correo'],
+                'paquete': package_info['nombre'],
+                'precio_unitario': float(precio_unitario),
+                'cantidad': quantity,
+                'precio_total': float(precio_total),
+                'saldo_anterior': float(saldo_actual),
+                'saldo_nuevo': float(nuevo_saldo),
+                'numero_control': numero_control,
+                'transaccion_id': transaccion_id,
+                'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+        }
+        
+        # Agregar PIN(s) a la respuesta
+        if quantity == 1:
+            response_data['data']['pin'] = pins_list[0]
+        else:
+            response_data['data']['pines'] = pins_list
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'code': '500',
+            'message': f'Error interno del servidor: {str(e)}'
+        }), 500
+
+@app.route('/api.php', methods=['POST'])
+def api_simple_endpoint_post():
+    """Endpoint POST para la API simple (redirige al GET)"""
+    return jsonify({
+        'status': 'error',
+        'code': '405',
+        'message': 'Usar método GET con parámetros en la URL'
+    }), 405
 
 if __name__ == '__main__':
     app.run(debug=True)

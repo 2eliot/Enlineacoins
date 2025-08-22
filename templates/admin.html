@@ -462,6 +462,18 @@
     ]
   </script>
 
+  <script type="application/json" id="bloodstriker-data">
+    [
+      {% for price in bloodstriker_prices %}
+      {
+        "id": {{ price.id }},
+        "nombre": "{{ price.nombre }}",
+        "precio": {{ price.precio }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  </script>
+
   <script>
     // Auto-ocultar mensajes flash después de 2 segundos
     setTimeout(function() {
@@ -519,7 +531,7 @@
     // Datos de paquetes desde elementos HTML
     const freefireLatamPackages = JSON.parse(document.getElementById('freefire-latam-data').textContent);
     const freefireGlobalPackages = JSON.parse(document.getElementById('freefire-global-data').textContent);
-    const bloodstrikerPackages = [];
+    const bloodstrikerPackages = JSON.parse(document.getElementById('bloodstriker-data').textContent);
 
     // Funciones para actualizar paquetes con datos dinámicos
     function updateSinglePinPackages() {
