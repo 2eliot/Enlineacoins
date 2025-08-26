@@ -75,273 +75,286 @@ def return_db_connection(conn):
     conn.close()
 
 def init_db():
-    """Inicializa la base de datos con las tablas necesarias"""
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
+    """Inicializa la base de datos con las tablas necesarias - Compatible con Render"""
+    conn = None
+    try:
+        conn = get_db_connection_optimized()
+        cursor = conn.cursor()
+        
+        # Tabla de usuarios
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                apellido TEXT NOT NULL,
+                telefono TEXT NOT NULL,
+                correo TEXT UNIQUE NOT NULL,
+                contraseña TEXT NOT NULL,
+                saldo REAL DEFAULT 0.0,
+                fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabla de transacciones
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS transacciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                numero_control TEXT NOT NULL,
+                pin TEXT NOT NULL,
+                transaccion_id TEXT NOT NULL,
+                monto REAL DEFAULT 0.0,
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
     
-    # Tabla de usuarios
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            apellido TEXT NOT NULL,
-            telefono TEXT NOT NULL,
-            correo TEXT UNIQUE NOT NULL,
-            contraseña TEXT NOT NULL,
-            saldo REAL DEFAULT 0.0,
-            fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+        # Tabla de pines de Free Fire LATAM
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pines_freefire (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monto_id INTEGER NOT NULL,
+                pin_codigo TEXT NOT NULL,
+                usado BOOLEAN DEFAULT FALSE,
+                fecha_agregado DATETIME DEFAULT CURRENT_TIMESTAMP,
+                fecha_usado DATETIME NULL,
+                usuario_id INTEGER NULL,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
+        
+        # Tabla de pines de Free Fire (nuevo juego)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pines_freefire_global (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monto_id INTEGER NOT NULL,
+                pin_codigo TEXT NOT NULL,
+                usado BOOLEAN DEFAULT FALSE,
+                fecha_agregado DATETIME DEFAULT CURRENT_TIMESTAMP,
+                fecha_usado DATETIME NULL,
+                usuario_id INTEGER NULL,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
     
-    # Tabla de transacciones
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS transacciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER,
-            numero_control TEXT NOT NULL,
-            pin TEXT NOT NULL,
-            transaccion_id TEXT NOT NULL,
-            monto REAL DEFAULT 0.0,
-            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-        )
-    ''')
+        # Tabla de precios de Free Fire (nuevo juego)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS precios_freefire_global (
+                id INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                precio REAL NOT NULL,
+                descripcion TEXT NOT NULL,
+                activo BOOLEAN DEFAULT TRUE,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabla de precios de paquetes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS precios_paquetes (
+                id INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                precio REAL NOT NULL,
+                descripcion TEXT NOT NULL,
+                activo BOOLEAN DEFAULT TRUE,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabla de precios de Blood Striker
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS precios_bloodstriker (
+                id INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                precio REAL NOT NULL,
+                descripcion TEXT NOT NULL,
+                activo BOOLEAN DEFAULT TRUE,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabla de transacciones de Blood Striker
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS transacciones_bloodstriker (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                player_id TEXT NOT NULL,
+                paquete_id INTEGER NOT NULL,
+                numero_control TEXT NOT NULL,
+                transaccion_id TEXT NOT NULL,
+                monto REAL DEFAULT 0.0,
+                estado TEXT DEFAULT 'pendiente',
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                fecha_procesado DATETIME NULL,
+                admin_id INTEGER NULL,
+                notas TEXT NULL,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
+                FOREIGN KEY (admin_id) REFERENCES usuarios (id)
+            )
+        ''')
+        
+        # Tabla de configuración de fuentes de pines por monto
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS configuracion_fuentes_pines (
+                monto_id INTEGER PRIMARY KEY,
+                fuente TEXT NOT NULL DEFAULT 'local',
+                activo BOOLEAN DEFAULT TRUE,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CHECK (fuente IN ('local', 'api_externa'))
+            )
+        ''')
+        
+        # Insertar configuración por defecto si no existe (todos en local)
+        cursor.execute('SELECT COUNT(*) FROM configuracion_fuentes_pines')
+        if cursor.fetchone()[0] == 0:
+            configuracion_default = [(i, 'local', True) for i in range(1, 10)]
+            cursor.executemany('''
+                INSERT INTO configuracion_fuentes_pines (monto_id, fuente, activo)
+                VALUES (?, ?, ?)
+            ''', configuracion_default)
     
-    # Tabla de pines de Free Fire LATAM
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS pines_freefire (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            monto_id INTEGER NOT NULL,
-            pin_codigo TEXT NOT NULL,
-            usado BOOLEAN DEFAULT FALSE,
-            fecha_agregado DATETIME DEFAULT CURRENT_TIMESTAMP,
-            fecha_usado DATETIME NULL,
-            usuario_id INTEGER NULL,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-        )
-    ''')
+        # Insertar precios por defecto si no existen
+        cursor.execute('SELECT COUNT(*) FROM precios_paquetes')
+        if cursor.fetchone()[0] == 0:
+            precios_default = [
+                (1, '110 💎', 0.66, '110 Diamantes Free Fire', True),
+                (2, '341 💎', 2.25, '341 Diamantes Free Fire', True),
+                (3, '572 💎', 3.66, '572 Diamantes Free Fire', True),
+                (4, '1.166 💎', 7.10, '1.166 Diamantes Free Fire', True),
+                (5, '2.376 💎', 14.44, '2.376 Diamantes Free Fire', True),
+                (6, '6.138 💎', 33.10, '6.138 Diamantes Free Fire', True),
+                (7, 'Tarjeta básica', 0.50, 'Tarjeta básica Free Fire', True),
+                (8, 'Tarjeta semanal', 1.55, 'Tarjeta semanal Free Fire', True),
+                (9, 'Tarjeta mensual', 7.10, 'Tarjeta mensual Free Fire', True)
+            ]
+            cursor.executemany('''
+                INSERT INTO precios_paquetes (id, nombre, precio, descripcion, activo)
+                VALUES (?, ?, ?, ?, ?)
+            ''', precios_default)
+        
+        # Insertar precios de Blood Striker por defecto si no existen
+        cursor.execute('SELECT COUNT(*) FROM precios_bloodstriker')
+        if cursor.fetchone()[0] == 0:
+            precios_bloodstriker = [
+                (1, '100+16 🪙', 0.82, '100+16 Monedas Blood Striker', True),
+                (2, '300+52 🪙', 2.60, '300+52 Monedas Blood Striker', True),
+                (3, '500+94 🪙', 4.30, '500+94 Monedas Blood Striker', True),
+                (4, '1,000+210 🪙', 8.65, '1,000+210 Monedas Blood Striker', True),
+                (5, '2,000+486 🪙', 17.30, '2,000+486 Monedas Blood Striker', True),
+                (6, '5,000+1,380 🪙', 43.15, '5,000+1,380 Monedas Blood Striker', True),
+                (7, 'Pase Elite 🎖️', 3.50, 'Pase Elite Blood Striker', True),
+                (8, 'Pase Elite (Plus) 🎖️', 8.00, 'Pase Elite Plus Blood Striker', True),
+                (9, 'Pase de Mejora 🔫', 1.85, 'Pase de Mejora Blood Striker', True),
+                (10, 'Cofre Camuflaje Ultra 💼', 0.50, 'Cofre Camuflaje Ultra Blood Striker', True)
+            ]
+            cursor.executemany('''
+                INSERT INTO precios_bloodstriker (id, nombre, precio, descripcion, activo)
+                VALUES (?, ?, ?, ?, ?)
+            ''', precios_bloodstriker)
+        
+        # Insertar precios de Free Fire Global por defecto si no existen
+        cursor.execute('SELECT COUNT(*) FROM precios_freefire_global')
+        if cursor.fetchone()[0] == 0:
+            precios_freefire_global = [
+                (1, '100+10 💎', 0.86, '100+10 Diamantes Free Fire', True),
+                (2, '310+31 💎', 2.90, '310+31 Diamantes Free Fire', True),
+                (3, '520+52 💎', 4.00, '520+52 Diamantes Free Fire', True),
+                (4, '1.060+106 💎', 7.75, '1.060+106 Diamantes Free Fire', True),
+                (5, '2.180+218 💎', 15.30, '2.180+218 Diamantes Free Fire', True),
+                (6, '5.600+560 💎', 38.00, '5.600+560 Diamantes Free Fire', True)
+            ]
+            cursor.executemany('''
+                INSERT INTO precios_freefire_global (id, nombre, precio, descripcion, activo)
+                VALUES (?, ?, ?, ?, ?)
+            ''', precios_freefire_global)
+        
+        # Tabla de precios de compra (costos) para gestión de rentabilidad
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS precios_compra (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                juego TEXT NOT NULL,
+                paquete_id INTEGER NOT NULL,
+                precio_compra REAL NOT NULL DEFAULT 0.0,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                activo BOOLEAN DEFAULT TRUE,
+                UNIQUE(juego, paquete_id)
+            )
+        ''')
+        
+        # Tabla de estadísticas de ventas semanales
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ventas_semanales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                juego TEXT NOT NULL,
+                paquete_id INTEGER NOT NULL,
+                paquete_nombre TEXT NOT NULL,
+                precio_venta REAL NOT NULL,
+                precio_compra REAL NOT NULL DEFAULT 0.0,
+                ganancia_unitaria REAL NOT NULL DEFAULT 0.0,
+                cantidad_vendida INTEGER NOT NULL DEFAULT 1,
+                ganancia_total REAL NOT NULL DEFAULT 0.0,
+                fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
+                semana_year TEXT NOT NULL,
+                CHECK (cantidad_vendida > 0)
+            )
+        ''')
+        
+        # Insertar precios de compra por defecto si no existen
+        cursor.execute('SELECT COUNT(*) FROM precios_compra')
+        if cursor.fetchone()[0] == 0:
+            precios_compra_default = [
+                # Free Fire LATAM
+                ('freefire_latam', 1, 0.59),  # 110 💎 - costo $0.59, venta $0.66
+                ('freefire_latam', 2, 2.00),  # 341 💎 - costo $2.00, venta $2.25
+                ('freefire_latam', 3, 3.20),  # 572 💎 - costo $3.20, venta $3.66
+                ('freefire_latam', 4, 6.50),  # 1.166 💎 - costo $6.50, venta $7.10
+                ('freefire_latam', 5, 13.00), # 2.376 💎 - costo $13.00, venta $14.44
+                ('freefire_latam', 6, 30.00), # 6.138 💎 - costo $30.00, venta $33.10
+                ('freefire_latam', 7, 0.40),  # Tarjeta básica - costo $0.40, venta $0.50
+                ('freefire_latam', 8, 1.30),  # Tarjeta semanal - costo $1.30, venta $1.55
+                ('freefire_latam', 9, 6.50),  # Tarjeta mensual - costo $6.50, venta $7.10
+                
+                # Free Fire Global
+                ('freefire_global', 1, 0.75), # 100+10 💎 - costo $0.75, venta $0.86
+                ('freefire_global', 2, 2.50), # 310+31 💎 - costo $2.50, venta $2.90
+                ('freefire_global', 3, 3.50), # 520+52 💎 - costo $3.50, venta $4.00
+                ('freefire_global', 4, 7.00), # 1.060+106 💎 - costo $7.00, venta $7.75
+                ('freefire_global', 5, 14.00), # 2.180+218 💎 - costo $14.00, venta $15.30
+                ('freefire_global', 6, 35.00), # 5.600+560 💎 - costo $35.00, venta $38.00
+                
+                # Blood Striker
+                ('bloodstriker', 1, 0.70),   # 100+16 🪙 - costo $0.70, venta $0.82
+                ('bloodstriker', 2, 2.30),   # 300+52 🪙 - costo $2.30, venta $2.60
+                ('bloodstriker', 3, 3.80),   # 500+94 🪙 - costo $3.80, venta $4.30
+                ('bloodstriker', 4, 7.80),   # 1,000+210 🪙 - costo $7.80, venta $8.65
+                ('bloodstriker', 5, 15.50),  # 2,000+486 🪙 - costo $15.50, venta $17.30
+                ('bloodstriker', 6, 39.00),  # 5,000+1,380 🪙 - costo $39.00, venta $43.15
+                ('bloodstriker', 7, 3.00),   # Pase Elite - costo $3.00, venta $3.50
+                ('bloodstriker', 8, 7.20),   # Pase Elite Plus - costo $7.20, venta $8.00
+                ('bloodstriker', 9, 1.60),   # Pase de Mejora - costo $1.60, venta $1.85
+                ('bloodstriker', 10, 0.40),  # Cofre Camuflaje - costo $0.40, venta $0.50
+            ]
+            cursor.executemany('''
+                INSERT INTO precios_compra (juego, paquete_id, precio_compra)
+                VALUES (?, ?, ?)
+            ''', precios_compra_default)
     
-    # Tabla de pines de Free Fire (nuevo juego)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS pines_freefire_global (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            monto_id INTEGER NOT NULL,
-            pin_codigo TEXT NOT NULL,
-            usado BOOLEAN DEFAULT FALSE,
-            fecha_agregado DATETIME DEFAULT CURRENT_TIMESTAMP,
-            fecha_usado DATETIME NULL,
-            usuario_id INTEGER NULL,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-        )
-    ''')
-    
-    # Tabla de precios de Free Fire (nuevo juego)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS precios_freefire_global (
-            id INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            precio REAL NOT NULL,
-            descripcion TEXT NOT NULL,
-            activo BOOLEAN DEFAULT TRUE,
-            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Tabla de precios de paquetes
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS precios_paquetes (
-            id INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            precio REAL NOT NULL,
-            descripcion TEXT NOT NULL,
-            activo BOOLEAN DEFAULT TRUE,
-            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Tabla de precios de Blood Striker
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS precios_bloodstriker (
-            id INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            precio REAL NOT NULL,
-            descripcion TEXT NOT NULL,
-            activo BOOLEAN DEFAULT TRUE,
-            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Tabla de transacciones de Blood Striker
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS transacciones_bloodstriker (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER,
-            player_id TEXT NOT NULL,
-            paquete_id INTEGER NOT NULL,
-            numero_control TEXT NOT NULL,
-            transaccion_id TEXT NOT NULL,
-            monto REAL DEFAULT 0.0,
-            estado TEXT DEFAULT 'pendiente',
-            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-            fecha_procesado DATETIME NULL,
-            admin_id INTEGER NULL,
-            notas TEXT NULL,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
-            FOREIGN KEY (admin_id) REFERENCES usuarios (id)
-        )
-    ''')
-    
-    # Tabla de configuración de fuentes de pines por monto
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS configuracion_fuentes_pines (
-            monto_id INTEGER PRIMARY KEY,
-            fuente TEXT NOT NULL DEFAULT 'local',
-            activo BOOLEAN DEFAULT TRUE,
-            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-            CHECK (fuente IN ('local', 'api_externa'))
-        )
-    ''')
-    
-    # Insertar configuración por defecto si no existe (todos en local)
-    cursor.execute('SELECT COUNT(*) FROM configuracion_fuentes_pines')
-    if cursor.fetchone()[0] == 0:
-        configuracion_default = [(i, 'local', True) for i in range(1, 10)]
-        cursor.executemany('''
-            INSERT INTO configuracion_fuentes_pines (monto_id, fuente, activo)
-            VALUES (?, ?, ?)
-        ''', configuracion_default)
-    
-    # Insertar precios por defecto si no existen
-    cursor.execute('SELECT COUNT(*) FROM precios_paquetes')
-    if cursor.fetchone()[0] == 0:
-        precios_default = [
-            (1, '110 💎', 0.66, '110 Diamantes Free Fire', True),
-            (2, '341 💎', 2.25, '341 Diamantes Free Fire', True),
-            (3, '572 💎', 3.66, '572 Diamantes Free Fire', True),
-            (4, '1.166 💎', 7.10, '1.166 Diamantes Free Fire', True),
-            (5, '2.376 💎', 14.44, '2.376 Diamantes Free Fire', True),
-            (6, '6.138 💎', 33.10, '6.138 Diamantes Free Fire', True),
-            (7, 'Tarjeta básica', 0.50, 'Tarjeta básica Free Fire', True),
-            (8, 'Tarjeta semanal', 1.55, 'Tarjeta semanal Free Fire', True),
-            (9, 'Tarjeta mensual', 7.10, 'Tarjeta mensual Free Fire', True)
-        ]
-        cursor.executemany('''
-            INSERT INTO precios_paquetes (id, nombre, precio, descripcion, activo)
-            VALUES (?, ?, ?, ?, ?)
-        ''', precios_default)
-    
-    # Insertar precios de Blood Striker por defecto si no existen
-    cursor.execute('SELECT COUNT(*) FROM precios_bloodstriker')
-    if cursor.fetchone()[0] == 0:
-        precios_bloodstriker = [
-            (1, '100+16 🪙', 0.82, '100+16 Monedas Blood Striker', True),
-            (2, '300+52 🪙', 2.60, '300+52 Monedas Blood Striker', True),
-            (3, '500+94 🪙', 4.30, '500+94 Monedas Blood Striker', True),
-            (4, '1,000+210 🪙', 8.65, '1,000+210 Monedas Blood Striker', True),
-            (5, '2,000+486 🪙', 17.30, '2,000+486 Monedas Blood Striker', True),
-            (6, '5,000+1,380 🪙', 43.15, '5,000+1,380 Monedas Blood Striker', True),
-            (7, 'Pase Elite 🎖️', 3.50, 'Pase Elite Blood Striker', True),
-            (8, 'Pase Elite (Plus) 🎖️', 8.00, 'Pase Elite Plus Blood Striker', True),
-            (9, 'Pase de Mejora 🔫', 1.85, 'Pase de Mejora Blood Striker', True),
-            (10, 'Cofre Camuflaje Ultra 💼', 0.50, 'Cofre Camuflaje Ultra Blood Striker', True)
-        ]
-        cursor.executemany('''
-            INSERT INTO precios_bloodstriker (id, nombre, precio, descripcion, activo)
-            VALUES (?, ?, ?, ?, ?)
-        ''', precios_bloodstriker)
-    
-    # Insertar precios de Free Fire Global por defecto si no existen
-    cursor.execute('SELECT COUNT(*) FROM precios_freefire_global')
-    if cursor.fetchone()[0] == 0:
-        precios_freefire_global = [
-            (1, '100+10 💎', 0.86, '100+10 Diamantes Free Fire', True),
-            (2, '310+31 💎', 2.90, '310+31 Diamantes Free Fire', True),
-            (3, '520+52 💎', 4.00, '520+52 Diamantes Free Fire', True),
-            (4, '1.060+106 💎', 7.75, '1.060+106 Diamantes Free Fire', True),
-            (5, '2.180+218 💎', 15.30, '2.180+218 Diamantes Free Fire', True),
-            (6, '5.600+560 💎', 38.00, '5.600+560 Diamantes Free Fire', True)
-        ]
-        cursor.executemany('''
-            INSERT INTO precios_freefire_global (id, nombre, precio, descripcion, activo)
-            VALUES (?, ?, ?, ?, ?)
-        ''', precios_freefire_global)
-    
-    # Tabla de precios de compra (costos) para gestión de rentabilidad
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS precios_compra (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            juego TEXT NOT NULL,
-            paquete_id INTEGER NOT NULL,
-            precio_compra REAL NOT NULL DEFAULT 0.0,
-            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-            activo BOOLEAN DEFAULT TRUE,
-            UNIQUE(juego, paquete_id)
-        )
-    ''')
-    
-    # Tabla de estadísticas de ventas semanales
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ventas_semanales (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            juego TEXT NOT NULL,
-            paquete_id INTEGER NOT NULL,
-            paquete_nombre TEXT NOT NULL,
-            precio_venta REAL NOT NULL,
-            precio_compra REAL NOT NULL DEFAULT 0.0,
-            ganancia_unitaria REAL NOT NULL DEFAULT 0.0,
-            cantidad_vendida INTEGER NOT NULL DEFAULT 1,
-            ganancia_total REAL NOT NULL DEFAULT 0.0,
-            fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
-            semana_year TEXT NOT NULL,
-            CHECK (cantidad_vendida > 0)
-        )
-    ''')
-    
-    # Insertar precios de compra por defecto si no existen
-    cursor.execute('SELECT COUNT(*) FROM precios_compra')
-    if cursor.fetchone()[0] == 0:
-        precios_compra_default = [
-            # Free Fire LATAM
-            ('freefire_latam', 1, 0.59),  # 110 💎 - costo $0.59, venta $0.66
-            ('freefire_latam', 2, 2.00),  # 341 💎 - costo $2.00, venta $2.25
-            ('freefire_latam', 3, 3.20),  # 572 💎 - costo $3.20, venta $3.66
-            ('freefire_latam', 4, 6.50),  # 1.166 💎 - costo $6.50, venta $7.10
-            ('freefire_latam', 5, 13.00), # 2.376 💎 - costo $13.00, venta $14.44
-            ('freefire_latam', 6, 30.00), # 6.138 💎 - costo $30.00, venta $33.10
-            ('freefire_latam', 7, 0.40),  # Tarjeta básica - costo $0.40, venta $0.50
-            ('freefire_latam', 8, 1.30),  # Tarjeta semanal - costo $1.30, venta $1.55
-            ('freefire_latam', 9, 6.50),  # Tarjeta mensual - costo $6.50, venta $7.10
-            
-            # Free Fire Global
-            ('freefire_global', 1, 0.75), # 100+10 💎 - costo $0.75, venta $0.86
-            ('freefire_global', 2, 2.50), # 310+31 💎 - costo $2.50, venta $2.90
-            ('freefire_global', 3, 3.50), # 520+52 💎 - costo $3.50, venta $4.00
-            ('freefire_global', 4, 7.00), # 1.060+106 💎 - costo $7.00, venta $7.75
-            ('freefire_global', 5, 14.00), # 2.180+218 💎 - costo $14.00, venta $15.30
-            ('freefire_global', 6, 35.00), # 5.600+560 💎 - costo $35.00, venta $38.00
-            
-            # Blood Striker
-            ('bloodstriker', 1, 0.70),   # 100+16 🪙 - costo $0.70, venta $0.82
-            ('bloodstriker', 2, 2.30),   # 300+52 🪙 - costo $2.30, venta $2.60
-            ('bloodstriker', 3, 3.80),   # 500+94 🪙 - costo $3.80, venta $4.30
-            ('bloodstriker', 4, 7.80),   # 1,000+210 🪙 - costo $7.80, venta $8.65
-            ('bloodstriker', 5, 15.50),  # 2,000+486 🪙 - costo $15.50, venta $17.30
-            ('bloodstriker', 6, 39.00),  # 5,000+1,380 🪙 - costo $39.00, venta $43.15
-            ('bloodstriker', 7, 3.00),   # Pase Elite - costo $3.00, venta $3.50
-            ('bloodstriker', 8, 7.20),   # Pase Elite Plus - costo $7.20, venta $8.00
-            ('bloodstriker', 9, 1.60),   # Pase de Mejora - costo $1.60, venta $1.85
-            ('bloodstriker', 10, 0.40),  # Cofre Camuflaje - costo $0.40, venta $0.50
-        ]
-        cursor.executemany('''
-            INSERT INTO precios_compra (juego, paquete_id, precio_compra)
-            VALUES (?, ?, ?)
-        ''', precios_compra_default)
-    
-    # Crear índices optimizados para mejor rendimiento
-    create_optimized_indexes(cursor)
-    
-    conn.commit()
-    conn.close()
+        # Crear índices optimizados para mejor rendimiento
+        create_optimized_indexes(cursor)
+        
+        conn.commit()
+        
+    except Exception as e:
+        print(f"Error al inicializar la base de datos: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        raise e
+    finally:
+        if conn:
+            return_db_connection(conn)
 
 def create_optimized_indexes(cursor):
     """Crea índices optimizados para consultas frecuentes"""
