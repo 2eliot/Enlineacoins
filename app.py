@@ -204,6 +204,43 @@ def init_db():
             )
         ''')
         
+        # Tabla de créditos de billetera
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS creditos_billetera (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                monto REAL DEFAULT 0.0,
+                saldo_anterior REAL DEFAULT 0.0,
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                visto BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
+        
+        # Tabla de noticias
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS noticias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                contenido TEXT NOT NULL,
+                importante BOOLEAN DEFAULT FALSE,
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Tabla de noticias vistas por usuario
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS noticias_vistas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                noticia_id INTEGER,
+                fecha_vista DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id),
+                FOREIGN KEY (noticia_id) REFERENCES noticias (id),
+                UNIQUE(usuario_id, noticia_id)
+            )
+        ''')
+        
         # Insertar configuración por defecto si no existe (todos en local)
         cursor.execute('SELECT COUNT(*) FROM configuracion_fuentes_pines')
         if cursor.fetchone()[0] == 0:
