@@ -43,21 +43,28 @@ mail = Mail(app)
 # Configuración de la base de datos con optimizaciones y compatibilidad con Render
 def get_render_compatible_db_path():
     """Obtiene la ruta de la base de datos compatible con Render"""
-    if os.environ.get('RENDER'):
-        # En Render, usar directamente el directorio raíz del proyecto
+    # Priorizar DATABASE_PATH si está configurado (para disco persistente)
+    if os.environ.get('DATABASE_PATH'):
+        return os.environ.get('DATABASE_PATH')
+    elif os.environ.get('RENDER'):
+        # En Render sin disco persistente, usar directorio raíz
         return 'usuarios.db'
     else:
-        # En desarrollo local, permitir configuración personalizada
-        return os.environ.get('DATABASE_PATH', 'usuarios.db')
+        # En desarrollo local
+        return 'usuarios.db'
 
 DATABASE = get_render_compatible_db_path()
 
-# En Render no necesitamos crear directorios, la base de datos se crea en el directorio raíz
-if not os.environ.get('RENDER'):
-    # Solo crear directorio en desarrollo local si es necesario
-    db_dir = os.path.dirname(DATABASE)
-    if db_dir and not os.path.exists(db_dir):
+# Crear directorio para la base de datos si no existe (tanto local como Render con disco)
+db_dir = os.path.dirname(DATABASE)
+if db_dir and not os.path.exists(db_dir):
+    try:
         os.makedirs(db_dir, exist_ok=True)
+        print(f"Directorio creado para base de datos: {db_dir}")
+    except Exception as e:
+        print(f"Error creando directorio de base de datos: {e}")
+        # Si no se puede crear el directorio, usar ruta por defecto
+        DATABASE = 'usuarios.db'
 
 def get_db_connection_optimized():
     """Obtiene una conexión optimizada con configuraciones SQLite mejoradas"""
@@ -1006,7 +1013,65 @@ def delete_news(news_id):
     conn.close()
 
 
+# Función de debug para mostrar información de la base de datos
+def debug_database_info():
+    """Muestra información de debug sobre la base de datos"""
+    print("=" * 50)
+    print("🔍 DEBUG: INFORMACIÓN DE BASE DE DATOS")
+    print("=" * 50)
+    
+    # Variables de entorno
+    print(f"RENDER: {os.environ.get('RENDER', 'No configurado')}")
+    print(f"DATABASE_PATH: {os.environ.get('DATABASE_PATH', 'No configurado')}")
+    print(f"Ruta de BD configurada: {DATABASE}")
+    print(f"Ruta absoluta: {os.path.abspath(DATABASE)}")
+    print(f"Directorio actual: {os.getcwd()}")
+    
+    # Verificar si existe el archivo
+    if os.path.exists(DATABASE):
+        file_size = os.path.getsize(DATABASE)
+        print(f"✅ Base de datos existe: {file_size} bytes")
+        
+        # Verificar tablas
+        try:
+            conn = get_db_connection_optimized()
+            cursor = conn.cursor()
+            
+            # Listar tablas
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            print(f"📊 Tablas encontradas ({len(tables)}):")
+            for table in tables:
+                # Contar registros en cada tabla
+                try:
+                    count = cursor.execute(f"SELECT COUNT(*) FROM {table[0]}").fetchone()[0]
+                    print(f"   - {table[0]}: {count} registros")
+                except:
+                    print(f"   - {table[0]}: Error al contar")
+            
+            return_db_connection(conn)
+            
+        except Exception as e:
+            print(f"❌ Error conectando a BD: {e}")
+    else:
+        print(f"❌ Base de datos NO existe en: {DATABASE}")
+        
+        # Verificar directorio padre
+        db_dir = os.path.dirname(DATABASE)
+        if db_dir:
+            print(f"📁 Directorio padre: {db_dir}")
+            print(f"   Existe: {os.path.exists(db_dir)}")
+            if os.path.exists(db_dir):
+                try:
+                    files = os.listdir(db_dir)
+                    print(f"   Archivos: {files}")
+                except:
+                    print("   Error listando archivos")
+    
+    print("=" * 50)
+
 # Inicializar la base de datos al iniciar la aplicación
+debug_database_info()
 init_db()
 
 @app.route('/')
