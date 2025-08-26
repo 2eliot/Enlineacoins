@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash
+from flask import Flask, render_template, request, redirect, session, flash, jsonify
 import sqlite3
 import hashlib
 import os
@@ -9,6 +9,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 import threading
 from pin_manager import create_pin_manager
+from functools import lru_cache
+import random
+import string
 
 app = Flask(__name__)
 
@@ -37,13 +40,37 @@ app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
 # Inicializar Flask-Mail
 mail = Mail(app)
 
-# Configuración de la base de datos
-DATABASE = os.environ.get('DATABASE_PATH', 'usuarios.db')
+# Configuración de la base de datos con optimizaciones y compatibilidad con Render
+def get_render_compatible_db_path():
+    """Obtiene la ruta de la base de datos compatible con Render"""
+    if os.environ.get('RENDER'):
+        # En Render, usar el directorio actual del proyecto
+        return os.path.join(os.getcwd(), 'usuarios.db')
+    else:
+        # En desarrollo local
+        return os.environ.get('DATABASE_PATH', 'usuarios.db')
+
+DATABASE = get_render_compatible_db_path()
 
 # Crear directorio para la base de datos si no existe
 db_dir = os.path.dirname(DATABASE)
 if db_dir and not os.path.exists(db_dir):
     os.makedirs(db_dir, exist_ok=True)
+
+def get_db_connection_optimized():
+    """Obtiene una conexión optimizada con configuraciones SQLite mejoradas"""
+    conn = sqlite3.connect(DATABASE, timeout=20.0)
+    conn.row_factory = sqlite3.Row
+    # Optimizaciones SQLite para mejor rendimiento
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA cache_size=10000')
+    conn.execute('PRAGMA temp_store=MEMORY')
+    return conn
+
+def return_db_connection(conn):
+    """Cierra la conexión (sin pool para evitar problemas de threading)"""
+    conn.close()
 
 def init_db():
     """Inicializa la base de datos con las tablas necesarias"""
@@ -237,8 +264,228 @@ def init_db():
             VALUES (?, ?, ?, ?, ?)
         ''', precios_freefire_global)
     
+    # Tabla de precios de compra (costos) para gestión de rentabilidad
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS precios_compra (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            juego TEXT NOT NULL,
+            paquete_id INTEGER NOT NULL,
+            precio_compra REAL NOT NULL DEFAULT 0.0,
+            fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+            activo BOOLEAN DEFAULT TRUE,
+            UNIQUE(juego, paquete_id)
+        )
+    ''')
+    
+    # Tabla de estadísticas de ventas semanales
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ventas_semanales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            juego TEXT NOT NULL,
+            paquete_id INTEGER NOT NULL,
+            paquete_nombre TEXT NOT NULL,
+            precio_venta REAL NOT NULL,
+            precio_compra REAL NOT NULL DEFAULT 0.0,
+            ganancia_unitaria REAL NOT NULL DEFAULT 0.0,
+            cantidad_vendida INTEGER NOT NULL DEFAULT 1,
+            ganancia_total REAL NOT NULL DEFAULT 0.0,
+            fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
+            semana_year TEXT NOT NULL,
+            CHECK (cantidad_vendida > 0)
+        )
+    ''')
+    
+    # Insertar precios de compra por defecto si no existen
+    cursor.execute('SELECT COUNT(*) FROM precios_compra')
+    if cursor.fetchone()[0] == 0:
+        precios_compra_default = [
+            # Free Fire LATAM
+            ('freefire_latam', 1, 0.59),  # 110 💎 - costo $0.59, venta $0.66
+            ('freefire_latam', 2, 2.00),  # 341 💎 - costo $2.00, venta $2.25
+            ('freefire_latam', 3, 3.20),  # 572 💎 - costo $3.20, venta $3.66
+            ('freefire_latam', 4, 6.50),  # 1.166 💎 - costo $6.50, venta $7.10
+            ('freefire_latam', 5, 13.00), # 2.376 💎 - costo $13.00, venta $14.44
+            ('freefire_latam', 6, 30.00), # 6.138 💎 - costo $30.00, venta $33.10
+            ('freefire_latam', 7, 0.40),  # Tarjeta básica - costo $0.40, venta $0.50
+            ('freefire_latam', 8, 1.30),  # Tarjeta semanal - costo $1.30, venta $1.55
+            ('freefire_latam', 9, 6.50),  # Tarjeta mensual - costo $6.50, venta $7.10
+            
+            # Free Fire Global
+            ('freefire_global', 1, 0.75), # 100+10 💎 - costo $0.75, venta $0.86
+            ('freefire_global', 2, 2.50), # 310+31 💎 - costo $2.50, venta $2.90
+            ('freefire_global', 3, 3.50), # 520+52 💎 - costo $3.50, venta $4.00
+            ('freefire_global', 4, 7.00), # 1.060+106 💎 - costo $7.00, venta $7.75
+            ('freefire_global', 5, 14.00), # 2.180+218 💎 - costo $14.00, venta $15.30
+            ('freefire_global', 6, 35.00), # 5.600+560 💎 - costo $35.00, venta $38.00
+            
+            # Blood Striker
+            ('bloodstriker', 1, 0.70),   # 100+16 🪙 - costo $0.70, venta $0.82
+            ('bloodstriker', 2, 2.30),   # 300+52 🪙 - costo $2.30, venta $2.60
+            ('bloodstriker', 3, 3.80),   # 500+94 🪙 - costo $3.80, venta $4.30
+            ('bloodstriker', 4, 7.80),   # 1,000+210 🪙 - costo $7.80, venta $8.65
+            ('bloodstriker', 5, 15.50),  # 2,000+486 🪙 - costo $15.50, venta $17.30
+            ('bloodstriker', 6, 39.00),  # 5,000+1,380 🪙 - costo $39.00, venta $43.15
+            ('bloodstriker', 7, 3.00),   # Pase Elite - costo $3.00, venta $3.50
+            ('bloodstriker', 8, 7.20),   # Pase Elite Plus - costo $7.20, venta $8.00
+            ('bloodstriker', 9, 1.60),   # Pase de Mejora - costo $1.60, venta $1.85
+            ('bloodstriker', 10, 0.40),  # Cofre Camuflaje - costo $0.40, venta $0.50
+        ]
+        cursor.executemany('''
+            INSERT INTO precios_compra (juego, paquete_id, precio_compra)
+            VALUES (?, ?, ?)
+        ''', precios_compra_default)
+    
+    # Crear índices optimizados para mejor rendimiento
+    create_optimized_indexes(cursor)
+    
     conn.commit()
     conn.close()
+
+def create_optimized_indexes(cursor):
+    """Crea índices optimizados para consultas frecuentes"""
+    indexes = [
+        'CREATE INDEX IF NOT EXISTS idx_usuarios_correo ON usuarios(correo)',
+        'CREATE INDEX IF NOT EXISTS idx_transacciones_usuario_fecha ON transacciones(usuario_id, fecha DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_transacciones_fecha ON transacciones(fecha DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_pines_monto_usado ON pines_freefire(monto_id, usado)',
+        'CREATE INDEX IF NOT EXISTS idx_pines_global_monto_usado ON pines_freefire_global(monto_id, usado)',
+        'CREATE INDEX IF NOT EXISTS idx_ventas_semanales_juego_semana ON ventas_semanales(juego, semana_year)',
+        'CREATE INDEX IF NOT EXISTS idx_precios_compra_juego_paquete ON precios_compra(juego, paquete_id, activo)',
+        'CREATE INDEX IF NOT EXISTS idx_bloodstriker_estado ON transacciones_bloodstriker(estado, fecha DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_creditos_usuario_visto ON creditos_billetera(usuario_id, visto)',
+        'CREATE INDEX IF NOT EXISTS idx_noticias_fecha ON noticias(fecha DESC)'
+    ]
+    
+    for index_sql in indexes:
+        try:
+            cursor.execute(index_sql)
+        except Exception as e:
+            print(f"Error creando índice: {e}")
+
+# Cache en memoria para datos frecuentes
+@lru_cache(maxsize=128)
+def get_package_info_with_prices_cached():
+    """Versión cacheada de información de paquetes Free Fire LATAM"""
+    conn = get_db_connection_optimized()
+    try:
+        packages = conn.execute('''
+            SELECT id, nombre, precio, descripcion 
+            FROM precios_paquetes 
+            WHERE activo = TRUE 
+            ORDER BY id
+        ''').fetchall()
+        
+        package_dict = {}
+        for package in packages:
+            package_dict[package['id']] = {
+                'nombre': package['nombre'],
+                'precio': package['precio'],
+                'descripcion': package['descripcion']
+            }
+        return package_dict
+    finally:
+        return_db_connection(conn)
+
+@lru_cache(maxsize=128)
+def get_bloodstriker_prices_cached():
+    """Versión cacheada de precios de Blood Striker"""
+    conn = get_db_connection_optimized()
+    try:
+        packages = conn.execute('''
+            SELECT id, nombre, precio, descripcion 
+            FROM precios_bloodstriker 
+            WHERE activo = TRUE 
+            ORDER BY id
+        ''').fetchall()
+        
+        package_dict = {}
+        for package in packages:
+            package_dict[package['id']] = {
+                'nombre': package['nombre'],
+                'precio': package['precio'],
+                'descripcion': package['descripcion']
+            }
+        return package_dict
+    finally:
+        return_db_connection(conn)
+
+@lru_cache(maxsize=128)
+def get_freefire_global_prices_cached():
+    """Versión cacheada de precios de Free Fire Global"""
+    conn = get_db_connection_optimized()
+    try:
+        packages = conn.execute('''
+            SELECT id, nombre, precio, descripcion 
+            FROM precios_freefire_global 
+            WHERE activo = TRUE 
+            ORDER BY id
+        ''').fetchall()
+        
+        package_dict = {}
+        for package in packages:
+            package_dict[package['id']] = {
+                'nombre': package['nombre'],
+                'precio': package['precio'],
+                'descripcion': package['descripcion']
+            }
+        return package_dict
+    finally:
+        return_db_connection(conn)
+
+def clear_price_cache():
+    """Limpia el cache de precios cuando se actualizan"""
+    get_package_info_with_prices_cached.cache_clear()
+    get_bloodstriker_prices_cached.cache_clear()
+    get_freefire_global_prices_cached.cache_clear()
+
+@lru_cache(maxsize=1000)
+def convert_to_venezuela_time_cached(utc_datetime_str):
+    """Versión optimizada con cache de conversión de zona horaria"""
+    try:
+        utc_dt = datetime.strptime(utc_datetime_str, '%Y-%m-%d %H:%M:%S')
+        utc_dt = pytz.utc.localize(utc_dt)
+        venezuela_tz = pytz.timezone('America/Caracas')
+        venezuela_dt = utc_dt.astimezone(venezuela_tz)
+        return venezuela_dt.strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return utc_datetime_str
+
+# Funciones de stock optimizadas
+def get_pin_stock_optimized():
+    """Versión optimizada que usa una sola query en lugar de 9"""
+    conn = get_db_connection_optimized()
+    try:
+        results = conn.execute('''
+            SELECT monto_id, COUNT(*) as count 
+            FROM pines_freefire 
+            WHERE usado = FALSE 
+            GROUP BY monto_id
+        ''').fetchall()
+        
+        stock = {i: 0 for i in range(1, 10)}
+        for result in results:
+            stock[result['monto_id']] = result['count']
+        return stock
+    finally:
+        return_db_connection(conn)
+
+def get_pin_stock_freefire_global_optimized():
+    """Versión optimizada para Free Fire Global"""
+    conn = get_db_connection_optimized()
+    try:
+        results = conn.execute('''
+            SELECT monto_id, COUNT(*) as count 
+            FROM pines_freefire_global 
+            WHERE usado = FALSE 
+            GROUP BY monto_id
+        ''').fetchall()
+        
+        stock = {i: 0 for i in range(1, 7)}
+        for result in results:
+            stock[result['monto_id']] = result['count']
+        return stock
+    finally:
+        return_db_connection(conn)
 
 def hash_password(password):
     """Hashea la contraseña usando Werkzeug (más seguro que SHA256)"""
@@ -1104,14 +1351,18 @@ def get_price_by_id(monto_id):
 
 def update_package_price(package_id, new_price):
     """Actualiza el precio de un paquete"""
-    conn = get_db_connection()
-    conn.execute('''
-        UPDATE precios_paquetes 
-        SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
-        WHERE id = ?
-    ''', (new_price, package_id))
-    conn.commit()
-    conn.close()
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_paquetes 
+            SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_price, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar precios
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
 
 def get_package_info_with_prices():
     """Obtiene información de paquetes con precios dinámicos"""
@@ -1280,14 +1531,18 @@ def update_bloodstriker_transaction_status(transaction_id, new_status, admin_id,
 
 def update_bloodstriker_price(package_id, new_price):
     """Actualiza el precio de un paquete de Blood Striker"""
-    conn = get_db_connection()
-    conn.execute('''
-        UPDATE precios_bloodstriker 
-        SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
-        WHERE id = ?
-    ''', (new_price, package_id))
-    conn.commit()
-    conn.close()
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_bloodstriker 
+            SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_price, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar precios
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
 
 def get_all_bloodstriker_prices():
     """Obtiene todos los precios de paquetes de Blood Striker"""
@@ -1431,8 +1686,8 @@ def admin_panel():
         return redirect('/auth')
     
     users = get_all_users()
-    pin_stock = get_pin_stock()
-    pin_stock_freefire_global = get_pin_stock_freefire_global()
+    pin_stock = get_pin_stock_optimized()
+    pin_stock_freefire_global = get_pin_stock_freefire_global_optimized()
     prices = get_all_prices()
     freefire_global_prices = get_all_freefire_global_prices()
     bloodstriker_prices = get_all_bloodstriker_prices()
@@ -1716,8 +1971,8 @@ def validar_freefire_latam():
     precio_unitario = get_price_by_id(monto_id)
     precio_total = precio_unitario * cantidad
     
-    # Obtener información del paquete
-    packages_info = get_package_info_with_prices()
+    # Obtener información del paquete usando cache
+    packages_info = get_package_info_with_prices_cached()
     package_info = packages_info.get(monto_id, {})
     
     paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}"
@@ -1832,6 +2087,10 @@ def validar_freefire_latam():
         # Actualizar saldo en sesión solo si no es admin
         if not is_admin:
             session['saldo'] = saldo_actual - precio_total
+        
+        # Registrar venta en estadísticas semanales (solo para usuarios normales)
+        if not is_admin:
+            register_weekly_sale('freefire_latam', monto_id, package_info.get('nombre', 'Paquete'), precio_unitario, cantidad)
         
         # Guardar datos de la compra en la sesión para mostrar después del redirect
         if cantidad == 1:
@@ -1977,8 +2236,8 @@ def validar_bloodstriker():
     # Obtener precio dinámico de la base de datos
     precio = get_bloodstriker_price_by_id(package_id)
     
-    # Obtener información del paquete
-    packages_info = get_bloodstriker_prices()
+    # Obtener información del paquete usando cache
+    packages_info = get_bloodstriker_prices_cached()
     package_info = packages_info.get(package_id, {})
     
     paquete_nombre = f"{package_info.get('nombre', 'Paquete')} / ${precio:.2f}"
@@ -2193,7 +2452,7 @@ def approve_bloodstriker_transaction(transaction_id):
         # Obtener información de la transacción de Blood Striker
         conn = get_db_connection()
         bs_transaction = conn.execute('''
-            SELECT bs.*, u.nombre, u.apellido, p.nombre as paquete_nombre
+            SELECT bs.*, u.nombre, u.apellido, p.nombre as paquete_nombre, p.precio
             FROM transacciones_bloodstriker bs
             JOIN usuarios u ON bs.usuario_id = u.id
             JOIN precios_bloodstriker p ON bs.paquete_id = p.id
@@ -2225,6 +2484,15 @@ def approve_bloodstriker_transaction(transaction_id):
             ''', (bs_transaction['usuario_id'], bs_transaction['usuario_id']))
             
             conn.commit()
+            
+            # Registrar venta en estadísticas semanales
+            register_weekly_sale(
+                'bloodstriker', 
+                bs_transaction['paquete_id'], 
+                bs_transaction['paquete_nombre'], 
+                bs_transaction['precio'], 
+                1
+            )
         
         conn.close()
         
@@ -2407,6 +2675,507 @@ def admin_delete_news():
     
     return redirect('/admin')
 
+# ============= RUTAS PARA GESTIÓN DE RENTABILIDAD =============
+
+@app.route('/admin/update_purchase_price', methods=['POST'])
+def admin_update_purchase_price():
+    """Actualiza el precio de compra de un paquete - Compatible con Render"""
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    juego = request.form.get('juego')
+    paquete_id = request.form.get('paquete_id')
+    nuevo_precio = request.form.get('nuevo_precio')
+    
+    if not all([juego, paquete_id, nuevo_precio]):
+        flash('Datos inválidos para actualizar precio de compra', 'error')
+        return redirect('/admin')
+    
+    try:
+        nuevo_precio = float(nuevo_precio)
+        paquete_id = int(paquete_id)
+        
+        if nuevo_precio < 0:
+            flash('El precio de compra no puede ser negativo', 'error')
+            return redirect('/admin')
+        
+        # Validar juego
+        if juego not in ['freefire_latam', 'freefire_global', 'bloodstriker']:
+            flash('Tipo de juego inválido', 'error')
+            return redirect('/admin')
+        
+        # Obtener nombre del paquete para el mensaje
+        try:
+            if juego == 'freefire_latam':
+                packages_info = get_package_info_with_prices()
+            elif juego == 'freefire_global':
+                packages_info = get_freefire_global_prices()
+            else:  # bloodstriker
+                packages_info = get_bloodstriker_prices()
+            
+            package_info = packages_info.get(paquete_id, {})
+            paquete_nombre = package_info.get('nombre', f'Paquete {paquete_id}')
+        except Exception as e:
+            print(f"Error obteniendo información del paquete: {e}")
+            paquete_nombre = f'Paquete {paquete_id}'
+        
+        # Actualizar precio de compra usando función compatible con Render
+        success = update_purchase_price(juego, paquete_id, nuevo_precio)
+        
+        if success:
+            juego_display = {
+                'freefire_latam': 'Free Fire LATAM',
+                'freefire_global': 'Free Fire',
+                'bloodstriker': 'Blood Striker'
+            }.get(juego, juego)
+            
+            flash(f'Precio de compra actualizado para {juego_display} - {paquete_nombre}: ${nuevo_precio:.2f}', 'success')
+        else:
+            flash('Error al actualizar precio de compra en la base de datos', 'error')
+        
+    except ValueError:
+        flash('Precio inválido. Debe ser un número válido.', 'error')
+    except Exception as e:
+        print(f"Error en admin_update_purchase_price: {e}")
+        flash(f'Error al actualizar precio de compra: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/profitability')
+def admin_profitability():
+    """Muestra el análisis de rentabilidad de todos los productos"""
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        profit_analysis = get_profit_analysis()
+        return render_template('admin_profitability.html', profit_analysis=profit_analysis)
+    except Exception as e:
+        flash(f'Error al obtener análisis de rentabilidad: {str(e)}', 'error')
+        return redirect('/admin')
+
+@app.route('/admin/weekly_sales')
+def admin_weekly_sales():
+    """Muestra las estadísticas de ventas semanales"""
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        weekly_stats = get_weekly_sales_stats()
+        return render_template('admin_weekly_sales.html', **weekly_stats)
+    except Exception as e:
+        flash(f'Error al obtener estadísticas semanales: {str(e)}', 'error')
+        return redirect('/admin')
+
+@app.route('/admin/clean_weekly_sales', methods=['POST'])
+def admin_clean_weekly_sales():
+    """Limpia manualmente las ventas semanales antiguas"""
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        deleted_count = clean_old_weekly_sales()
+        if deleted_count > 0:
+            flash(f'Se eliminaron {deleted_count} registros de ventas antiguas', 'success')
+        else:
+            flash('No se encontraron registros antiguos para eliminar', 'success')
+    except Exception as e:
+        flash(f'Error al limpiar ventas antiguas: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/reset_all_weekly_sales', methods=['POST'])
+def admin_reset_all_weekly_sales():
+    """Resetea TODAS las estadísticas de ventas semanales (elimina todos los registros)"""
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    try:
+        deleted_count = reset_all_weekly_sales()
+        if deleted_count > 0:
+            flash(f'Se resetearon todas las estadísticas: {deleted_count} registros eliminados', 'success')
+        else:
+            flash('No había estadísticas para resetear', 'success')
+    except Exception as e:
+        flash(f'Error al resetear estadísticas: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/simple_stats')
+def admin_simple_stats():
+    """Obtiene estadísticas simples de ventas para la pestaña de estadísticas"""
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Acceso denegado'}), 403
+    
+    try:
+        conn = get_db_connection()
+        
+        # Estadísticas por juego
+        stats = {}
+        
+        # Free Fire LATAM
+        ff_latam = conn.execute('''
+            SELECT SUM(cantidad_vendida) as total_units, SUM(ganancia_total) as total_profit
+            FROM ventas_semanales 
+            WHERE juego = 'freefire_latam'
+        ''').fetchone()
+        
+        stats['freefire_latam'] = {
+            'units': ff_latam['total_units'] or 0,
+            'profit': ff_latam['total_profit'] or 0.0
+        }
+        
+        # Free Fire Global
+        ff_global = conn.execute('''
+            SELECT SUM(cantidad_vendida) as total_units, SUM(ganancia_total) as total_profit
+            FROM ventas_semanales 
+            WHERE juego = 'freefire_global'
+        ''').fetchone()
+        
+        stats['freefire_global'] = {
+            'units': ff_global['total_units'] or 0,
+            'profit': ff_global['total_profit'] or 0.0
+        }
+        
+        # Blood Striker
+        bs = conn.execute('''
+            SELECT SUM(cantidad_vendida) as total_units, SUM(ganancia_total) as total_profit
+            FROM ventas_semanales 
+            WHERE juego = 'bloodstriker'
+        ''').fetchone()
+        
+        stats['bloodstriker'] = {
+            'units': bs['total_units'] or 0,
+            'profit': bs['total_profit'] or 0.0
+        }
+        
+        conn.close()
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/get_purchase_price/<juego>/<int:paquete_id>')
+def admin_get_purchase_price(juego, paquete_id):
+    """Obtiene el precio de compra actual para un juego y paquete específico"""
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Acceso denegado'}), 403
+    
+    try:
+        precio_compra = get_purchase_price(juego, paquete_id)
+        return jsonify({'precio_compra': precio_compra})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ============= FUNCIONES PARA GESTIÓN DE RENTABILIDAD =============
+
+def get_purchase_prices():
+    """Obtiene todos los precios de compra por juego y paquete"""
+    conn = get_db_connection()
+    prices = conn.execute('''
+        SELECT * FROM precios_compra 
+        WHERE activo = TRUE 
+        ORDER BY juego, paquete_id
+    ''').fetchall()
+    conn.close()
+    return prices
+
+def get_purchase_price(juego, paquete_id):
+    """Obtiene el precio de compra para un juego y paquete específico - Compatible con Render"""
+    conn = None
+    try:
+        conn = get_db_connection_optimized()
+        
+        # Usar parámetros seguros y validados
+        query = '''
+            SELECT precio_compra FROM precios_compra 
+            WHERE juego = ? AND paquete_id = ? AND activo = TRUE
+        '''
+        
+        result = conn.execute(query, (str(juego), int(paquete_id))).fetchone()
+        
+        if result:
+            return float(result['precio_compra'])
+        else:
+            return 0.0
+            
+    except Exception as e:
+        print(f"Error en get_purchase_price: {e}")
+        return 0.0
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+def update_purchase_price(juego, paquete_id, nuevo_precio):
+    """Actualiza el precio de compra para un juego y paquete específico - Compatible con Render"""
+    conn = None
+    try:
+        conn = get_db_connection_optimized()
+        
+        # Usar transacción para asegurar consistencia
+        conn.execute('BEGIN TRANSACTION')
+        
+        query = '''
+            INSERT OR REPLACE INTO precios_compra (juego, paquete_id, precio_compra, fecha_actualizacion, activo)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, TRUE)
+        '''
+        
+        conn.execute(query, (str(juego), int(paquete_id), float(nuevo_precio)))
+        conn.execute('COMMIT')
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error en update_purchase_price: {e}")
+        if conn:
+            try:
+                conn.execute('ROLLBACK')
+            except:
+                pass
+        return False
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+def get_profit_analysis():
+    """Obtiene análisis de rentabilidad por juego y paquete"""
+    conn = get_db_connection()
+    
+    # Análisis para Free Fire LATAM
+    freefire_latam_analysis = []
+    freefire_latam_prices = get_package_info_with_prices()
+    for paquete_id, info in freefire_latam_prices.items():
+        precio_compra = get_purchase_price('freefire_latam', paquete_id)
+        precio_venta = info['precio']
+        ganancia = precio_venta - precio_compra
+        margen = (ganancia / precio_venta * 100) if precio_venta > 0 else 0
+        
+        freefire_latam_analysis.append({
+            'juego': 'Free Fire LATAM',
+            'paquete_id': paquete_id,
+            'nombre': info['nombre'],
+            'precio_compra': precio_compra,
+            'precio_venta': precio_venta,
+            'ganancia': ganancia,
+            'margen_porcentaje': margen
+        })
+    
+    # Análisis para Free Fire Global
+    freefire_global_analysis = []
+    freefire_global_prices = get_freefire_global_prices()
+    for paquete_id, info in freefire_global_prices.items():
+        precio_compra = get_purchase_price('freefire_global', paquete_id)
+        precio_venta = info['precio']
+        ganancia = precio_venta - precio_compra
+        margen = (ganancia / precio_venta * 100) if precio_venta > 0 else 0
+        
+        freefire_global_analysis.append({
+            'juego': 'Free Fire',
+            'paquete_id': paquete_id,
+            'nombre': info['nombre'],
+            'precio_compra': precio_compra,
+            'precio_venta': precio_venta,
+            'ganancia': ganancia,
+            'margen_porcentaje': margen
+        })
+    
+    # Análisis para Blood Striker
+    bloodstriker_analysis = []
+    bloodstriker_prices = get_bloodstriker_prices()
+    for paquete_id, info in bloodstriker_prices.items():
+        precio_compra = get_purchase_price('bloodstriker', paquete_id)
+        precio_venta = info['precio']
+        ganancia = precio_venta - precio_compra
+        margen = (ganancia / precio_venta * 100) if precio_venta > 0 else 0
+        
+        bloodstriker_analysis.append({
+            'juego': 'Blood Striker',
+            'paquete_id': paquete_id,
+            'nombre': info['nombre'],
+            'precio_compra': precio_compra,
+            'precio_venta': precio_venta,
+            'ganancia': ganancia,
+            'margen_porcentaje': margen
+        })
+    
+    conn.close()
+    return freefire_latam_analysis + freefire_global_analysis + bloodstriker_analysis
+
+def register_weekly_sale(juego, paquete_id, paquete_nombre, precio_venta, cantidad=1):
+    """Registra una venta en las estadísticas semanales"""
+    from datetime import datetime
+    import calendar
+    
+    conn = get_db_connection()
+    
+    # Obtener precio de compra
+    precio_compra = get_purchase_price(juego, paquete_id)
+    ganancia_unitaria = precio_venta - precio_compra
+    ganancia_total = ganancia_unitaria * cantidad
+    
+    # Calcular semana del año (formato: YYYY-WW)
+    now = datetime.now()
+    year, week, _ = now.isocalendar()
+    semana_year = f"{year}-{week:02d}"
+    
+    # Verificar si ya existe un registro para esta semana y paquete
+    existing = conn.execute('''
+        SELECT id, cantidad_vendida, ganancia_total FROM ventas_semanales 
+        WHERE juego = ? AND paquete_id = ? AND semana_year = ?
+    ''', (juego, paquete_id, semana_year)).fetchone()
+    
+    if existing:
+        # Actualizar registro existente
+        nueva_cantidad = existing['cantidad_vendida'] + cantidad
+        nueva_ganancia_total = existing['ganancia_total'] + ganancia_total
+        
+        conn.execute('''
+            UPDATE ventas_semanales 
+            SET cantidad_vendida = ?, ganancia_total = ?, fecha_venta = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (nueva_cantidad, nueva_ganancia_total, existing['id']))
+    else:
+        # Crear nuevo registro
+        conn.execute('''
+            INSERT INTO ventas_semanales 
+            (juego, paquete_id, paquete_nombre, precio_venta, precio_compra, 
+             ganancia_unitaria, cantidad_vendida, ganancia_total, semana_year)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (juego, paquete_id, paquete_nombre, precio_venta, precio_compra, 
+              ganancia_unitaria, cantidad, ganancia_total, semana_year))
+    
+    conn.commit()
+    conn.close()
+
+def get_weekly_sales_stats():
+    """Obtiene estadísticas de ventas de la semana actual"""
+    from datetime import datetime
+    
+    # Calcular semana actual
+    now = datetime.now()
+    year, week, _ = now.isocalendar()
+    semana_actual = f"{year}-{week:02d}"
+    
+    conn = get_db_connection()
+    
+    # Estadísticas por juego
+    stats_by_game = conn.execute('''
+        SELECT juego, 
+               SUM(cantidad_vendida) as total_unidades,
+               SUM(ganancia_total) as ganancia_total_juego,
+               COUNT(DISTINCT paquete_id) as paquetes_diferentes
+        FROM ventas_semanales 
+        WHERE semana_year = ?
+        GROUP BY juego
+        ORDER BY ganancia_total_juego DESC
+    ''', (semana_actual,)).fetchall()
+    
+    # Estadísticas por paquete
+    stats_by_package = conn.execute('''
+        SELECT juego, paquete_nombre, precio_venta, precio_compra,
+               cantidad_vendida, ganancia_unitaria, ganancia_total
+        FROM ventas_semanales 
+        WHERE semana_year = ?
+        ORDER BY ganancia_total DESC
+    ''', (semana_actual,)).fetchall()
+    
+    # Totales generales
+    totals = conn.execute('''
+        SELECT SUM(cantidad_vendida) as total_unidades_vendidas,
+               SUM(ganancia_total) as ganancia_total_semana,
+               SUM(precio_venta * cantidad_vendida) as ingresos_totales,
+               SUM(precio_compra * cantidad_vendida) as costos_totales
+        FROM ventas_semanales 
+        WHERE semana_year = ?
+    ''', (semana_actual,)).fetchone()
+    
+    conn.close()
+    
+    return {
+        'semana_actual': semana_actual,
+        'stats_by_game': stats_by_game,
+        'stats_by_package': stats_by_package,
+        'totals': totals
+    }
+
+def clean_old_weekly_sales():
+    """Limpia las ventas semanales antiguas (mantiene solo las últimas 4 semanas)"""
+    from datetime import datetime, timedelta
+    
+    conn = get_db_connection()
+    
+    try:
+        # Calcular fecha límite (4 semanas atrás)
+        fecha_limite = datetime.now() - timedelta(weeks=4)
+        year_limite, week_limite, _ = fecha_limite.isocalendar()
+        semana_limite = f"{year_limite}-{week_limite:02d}"
+        
+        # Obtener todas las semanas existentes y filtrar las que son más antiguas
+        all_weeks = conn.execute('''
+            SELECT DISTINCT semana_year FROM ventas_semanales
+        ''').fetchall()
+        
+        weeks_to_delete = []
+        for week_row in all_weeks:
+            week_str = week_row['semana_year']
+            try:
+                # Parsear la semana (formato YYYY-WW)
+                year_str, week_str_num = week_str.split('-')
+                year = int(year_str)
+                week = int(week_str_num)
+                
+                # Comparar con la fecha límite
+                if year < year_limite or (year == year_limite and week < week_limite):
+                    weeks_to_delete.append(week_row['semana_year'])
+            except (ValueError, IndexError):
+                # Si hay un formato inválido, eliminar ese registro también
+                weeks_to_delete.append(week_row['semana_year'])
+        
+        # Eliminar registros antiguos
+        deleted_count = 0
+        for week_to_delete in weeks_to_delete:
+            count = conn.execute('''
+                DELETE FROM ventas_semanales 
+                WHERE semana_year = ?
+            ''', (week_to_delete,)).rowcount
+            deleted_count += count
+        
+        conn.commit()
+        return deleted_count
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error en clean_old_weekly_sales: {str(e)}")
+        return 0
+    finally:
+        conn.close()
+
+def reset_all_weekly_sales():
+    """Resetea TODAS las estadísticas de ventas semanales (elimina todos los registros)"""
+    conn = get_db_connection()
+    
+    try:
+        # Contar registros antes de eliminar
+        total_count = conn.execute('SELECT COUNT(*) FROM ventas_semanales').fetchone()[0]
+        
+        # Eliminar todos los registros
+        conn.execute('DELETE FROM ventas_semanales')
+        conn.commit()
+        
+        return total_count
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error en reset_all_weekly_sales: {str(e)}")
+        return 0
+    finally:
+        conn.close()
+
 # Funciones para Free Fire Global (nuevo juego)
 def add_pin_freefire_global(monto_id, pin_codigo):
     """Añade un pin de Free Fire Global al stock"""
@@ -2504,14 +3273,18 @@ def get_freefire_global_price_by_id(monto_id):
 
 def update_freefire_global_price(package_id, new_price):
     """Actualiza el precio de un paquete de Free Fire Global"""
-    conn = get_db_connection()
-    conn.execute('''
-        UPDATE precios_freefire_global 
-        SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
-        WHERE id = ?
-    ''', (new_price, package_id))
-    conn.commit()
-    conn.close()
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_freefire_global 
+            SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_price, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar precios
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
 
 def get_all_freefire_global_prices():
     """Obtiene todos los precios de paquetes de Free Fire Global"""
@@ -2588,8 +3361,8 @@ def validar_freefire():
     precio_unitario = get_freefire_global_price_by_id(monto_id)
     precio_total = precio_unitario * cantidad
     
-    # Obtener información del paquete
-    packages_info = get_freefire_global_prices()
+    # Obtener información del paquete usando cache
+    packages_info = get_freefire_global_prices_cached()
     package_info = packages_info.get(monto_id, {})
     
     paquete_nombre = f"{package_info.get('nombre', 'Paquete')} x{cantidad}" if cantidad > 1 else package_info.get('nombre', 'Paquete')
@@ -2679,6 +3452,10 @@ def validar_freefire():
     # Actualizar saldo en sesión solo si no es admin
     if not is_admin:
         session['saldo'] = saldo_actual - precio_total
+    
+    # Registrar venta en estadísticas semanales (solo para usuarios normales)
+    if not is_admin:
+        register_weekly_sale('freefire_global', monto_id, package_info.get('nombre', 'Paquete'), precio_unitario, cantidad)
     
     # Guardar datos de la compra en la sesión para mostrar después del redirect
     if cantidad == 1:
