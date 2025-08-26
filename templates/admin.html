@@ -51,6 +51,7 @@
         <button class="tab-button active" onclick="showTab('usuarios')">👥 Usuarios</button>
         <button class="tab-button" onclick="showTab('pines')">📌 Gestor de Pines</button>
         <button class="tab-button" onclick="showTab('precios')">💰 Precios</button>
+        <button class="tab-button" onclick="showTab('estadisticas')">📈 Estadísticas</button>
         <button class="tab-button" onclick="showTab('noticias')">📰 Noticias</button>
       </div>
 
@@ -363,6 +364,205 @@
         </section>
       </div>
 
+
+      <!-- Pestaña de Estadísticas -->
+      <div id="tab-estadisticas" class="tab-content">
+        <section class="statistics-section">
+          <h2>📈 Estadísticas y Rentabilidad</h2>
+          
+          <!-- Sección de estadísticas de ventas -->
+          <div class="stats-container">
+            <div class="stats-header">
+              <h3>📊 Resumen de Ventas</h3>
+              <p>Estadísticas generales de ventas y ganancias por producto</p>
+            </div>
+            
+            <!-- Resumen simple de estadísticas con mejor diseño -->
+            <div class="enhanced-stats-grid">
+              <div class="enhanced-stat-card freefire-latam">
+                <div class="stat-card-header">
+                  <div class="stat-icon">🔥</div>
+                  <div class="stat-title">
+                    <h4>Free Fire LATAM</h4>
+                    <span class="stat-subtitle">Servidor Latinoamérica</span>
+                  </div>
+                </div>
+                <div class="stat-metrics">
+                  <div class="metric">
+                    <span class="metric-label">Unidades vendidas</span>
+                    <span class="metric-value" id="ff-latam-units">-</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">Ganancia total</span>
+                    <span class="metric-value profit" id="ff-latam-profit">$0.00</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="enhanced-stat-card freefire-global">
+                <div class="stat-card-header">
+                  <div class="stat-icon">🎮</div>
+                  <div class="stat-title">
+                    <h4>Free Fire Global</h4>
+                    <span class="stat-subtitle">Servidor Global</span>
+                  </div>
+                </div>
+                <div class="stat-metrics">
+                  <div class="metric">
+                    <span class="metric-label">Unidades vendidas</span>
+                    <span class="metric-value" id="ff-global-units">-</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">Ganancia total</span>
+                    <span class="metric-value profit" id="ff-global-profit">$0.00</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="enhanced-stat-card bloodstriker">
+                <div class="stat-card-header">
+                  <div class="stat-icon">⚔️</div>
+                  <div class="stat-title">
+                    <h4>Blood Striker</h4>
+                    <span class="stat-subtitle">Battle Royale</span>
+                  </div>
+                </div>
+                <div class="stat-metrics">
+                  <div class="metric">
+                    <span class="metric-label">Unidades vendidas</span>
+                    <span class="metric-value" id="bs-units">-</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">Ganancia total</span>
+                    <span class="metric-value profit" id="bs-profit">$0.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección de gestión de rentabilidad -->
+          <div class="profitability-container">
+            <div class="profitability-header">
+              <h3>💰 Gestión de Rentabilidad</h3>
+              <p>Configure los precios de compra para calcular ganancias automáticamente</p>
+            </div>
+            
+            <!-- Formulario para actualizar precios de compra -->
+            <div class="profit-management-form">
+              <form method="POST" action="/admin/update_purchase_price" class="profit-form" onsubmit="handleProfitFormSubmit(event)">
+                <div class="profit-form-row">
+                  <div class="form-group">
+                    <label for="profit_game_select">🎮 Juego:</label>
+                    <select id="profit_game_select" name="juego" onchange="updateProfitPackages()" required>
+                      <option value="">Seleccione juego</option>
+                      <option value="freefire_latam">🔥 Free Fire LATAM</option>
+                      <option value="freefire_global">🎮 Free Fire Global</option>
+                      <option value="bloodstriker">⚔️ Blood Striker</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="profit_package_select">📦 Paquete:</label>
+                    <select id="profit_package_select" name="paquete_id" onchange="updateProfitInfo()" required disabled>
+                      <option value="">Seleccione paquete</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="purchase_price_input">💵 Precio de Compra:</label>
+                    <input type="number" 
+                           id="purchase_price_input" 
+                           name="nuevo_precio" 
+                           step="0.01" 
+                           min="0" 
+                           placeholder="0.00" 
+                           required>
+                  </div>
+                  
+                  <div class="form-group">
+                    <button type="submit" class="btn btn-update-profit" id="profit-submit-btn">💰 Actualizar Precio</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Información de rentabilidad -->
+            <div id="profit-info" class="profit-info-display" style="display: none;">
+              <div class="profit-analysis-card">
+                <div class="profit-card-header">
+                  <h4 id="selected-profit-package-name">-</h4>
+                  <span class="profit-badge" id="profit-status-badge">📊 Análisis</span>
+                </div>
+                <div class="profit-metrics-grid">
+                  <div class="profit-metric">
+                    <span class="profit-metric-label">Precio de Venta</span>
+                    <span class="profit-metric-value sale-price" id="sale-price-value">$0.00</span>
+                  </div>
+                  <div class="profit-metric">
+                    <span class="profit-metric-label">Precio de Compra</span>
+                    <span class="profit-metric-value purchase-price" id="current-purchase-price-value">$0.00</span>
+                  </div>
+                  <div class="profit-metric">
+                    <span class="profit-metric-label">Ganancia por Unidad</span>
+                    <span class="profit-metric-value profit-value" id="current-profit-value">$0.00</span>
+                  </div>
+                  <div class="profit-metric">
+                    <span class="profit-metric-label">Margen de Ganancia</span>
+                    <span class="profit-metric-value margin-value" id="current-margin-value">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Acciones de mantenimiento -->
+          <div class="stats-actions">
+            <div class="actions-header">
+              <h3>🔧 Herramientas de Mantenimiento</h3>
+              <p>Gestione los datos de estadísticas según sus necesidades</p>
+            </div>
+            <div class="actions-grid">
+              <form method="POST" action="/admin/clean_weekly_sales" class="action-form" 
+                    onsubmit="return confirm('¿Estás seguro de limpiar las estadísticas antiguas (más de 4 semanas)?')">
+                <div class="action-card">
+                  <div class="action-icon">🗑️</div>
+                  <div class="action-content">
+                    <h4>Limpiar Datos Antiguos</h4>
+                    <p>Elimina estadísticas de ventas de más de 4 semanas</p>
+                    <small class="action-note">Mantiene los datos recientes</small>
+                  </div>
+                  <button type="submit" class="btn btn-clean-stats">🗑️ Limpiar Antiguos</button>
+                </div>
+              </form>
+              
+              <form method="POST" action="/admin/reset_all_weekly_sales" class="action-form" 
+                    onsubmit="return confirm('⚠️ ATENCIÓN: Esto eliminará TODAS las estadísticas de ventas. ¿Estás completamente seguro?')">
+                <div class="action-card danger-card">
+                  <div class="action-icon">🔄</div>
+                  <div class="action-content">
+                    <h4>Resetear Todas las Estadísticas</h4>
+                    <p>Elimina TODOS los registros de estadísticas de ventas</p>
+                    <small class="action-note danger">⚠️ Esta acción no se puede deshacer</small>
+                  </div>
+                  <button type="submit" class="btn btn-reset-all-stats">🔄 Resetear Todo</button>
+                </div>
+              </form>
+              
+              <div class="action-card info-card">
+                <div class="action-icon">📈</div>
+                <div class="action-content">
+                  <h4>Actualización Automática</h4>
+                  <p>Las estadísticas se actualizan automáticamente con cada venta</p>
+                  <small class="action-note">Sistema activo 24/7</small>
+                </div>
+                <span class="status-badge active">Activo</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <!-- Pestaña de Noticias -->
       <div id="tab-noticias" class="tab-content">
         <section class="news-section">
@@ -645,9 +845,194 @@
       document.getElementById('new_price_input').value = '';
     }
 
+    // Funciones para gestión de rentabilidad
+    function updateProfitPackages() {
+      const gameSelect = document.getElementById('profit_game_select');
+      const packageSelect = document.getElementById('profit_package_select');
+      
+      // Limpiar opciones
+      packageSelect.innerHTML = '<option value="">Seleccione paquete</option>';
+      
+      if (gameSelect.value === 'freefire_latam') {
+        packageSelect.disabled = false;
+        freefireLatamPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-sale-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'freefire_global') {
+        packageSelect.disabled = false;
+        freefireGlobalPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-sale-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'bloodstriker') {
+        packageSelect.disabled = false;
+        bloodstrikerPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-sale-price', pkg.precio);
+          option.setAttribute('data-name', pkg.nombre);
+          option.textContent = pkg.nombre + ' / $' + pkg.precio.toFixed(2);
+          packageSelect.appendChild(option);
+        });
+      } else {
+        packageSelect.disabled = true;
+      }
+      
+      // Ocultar información de rentabilidad
+      document.getElementById('profit-info').style.display = 'none';
+      document.getElementById('purchase_price_input').value = '';
+    }
+
+    function updateProfitInfo() {
+      const select = document.getElementById('profit_package_select');
+      const selectedOption = select.options[select.selectedIndex];
+      const profitInfo = document.getElementById('profit-info');
+      const gameSelect = document.getElementById('profit_game_select');
+      
+      if (selectedOption.value && gameSelect.value) {
+        const salePrice = parseFloat(selectedOption.getAttribute('data-sale-price'));
+        const name = selectedOption.getAttribute('data-name');
+        const packageId = selectedOption.value;
+        const gameType = gameSelect.value;
+        
+        // Obtener precio de compra real desde la base de datos
+        fetch(`/admin/get_purchase_price/${gameType}/${packageId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.error) {
+              console.error('Error al obtener precio de compra:', data.error);
+              return;
+            }
+            
+            const purchasePrice = data.precio_compra || 0;
+            
+            document.getElementById('selected-profit-package-name').textContent = name;
+            document.getElementById('sale-price-value').textContent = '$' + salePrice.toFixed(2);
+            document.getElementById('current-purchase-price-value').textContent = '$' + purchasePrice.toFixed(2);
+            
+            const profit = salePrice - purchasePrice;
+            const margin = salePrice > 0 ? (profit / salePrice * 100) : 0;
+            
+            // Actualizar colores según la rentabilidad
+            const profitElement = document.getElementById('current-profit-value');
+            const marginElement = document.getElementById('current-margin-value');
+            
+            profitElement.textContent = '$' + profit.toFixed(2);
+            marginElement.textContent = margin.toFixed(1) + '%';
+            
+            // Cambiar colores según rentabilidad
+            if (profit > 0) {
+              profitElement.style.background = 'linear-gradient(135deg, #27ae60 0%, #229954 100%)';
+              marginElement.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
+            } else if (profit < 0) {
+              profitElement.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+              marginElement.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+            } else {
+              profitElement.style.background = 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)';
+              marginElement.style.background = 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)';
+            }
+            
+            document.getElementById('purchase_price_input').value = purchasePrice.toFixed(2);
+            
+            profitInfo.style.display = 'block';
+          })
+          .catch(error => {
+            console.error('Error al obtener precio de compra:', error);
+            // Fallback a estimación si hay error
+            const defaultPurchasePrice = salePrice * 0.85;
+            
+            document.getElementById('selected-profit-package-name').textContent = name;
+            document.getElementById('sale-price-value').textContent = '$' + salePrice.toFixed(2);
+            document.getElementById('current-purchase-price-value').textContent = '$' + defaultPurchasePrice.toFixed(2);
+            
+            const profit = salePrice - defaultPurchasePrice;
+            const margin = (profit / salePrice * 100);
+            
+            document.getElementById('current-profit-value').textContent = '$' + profit.toFixed(2);
+            document.getElementById('current-margin-value').textContent = margin.toFixed(1) + '%';
+            
+            document.getElementById('purchase_price_input').value = defaultPurchasePrice.toFixed(2);
+            
+            profitInfo.style.display = 'block';
+          });
+      } else {
+        profitInfo.style.display = 'none';
+        document.getElementById('purchase_price_input').value = '';
+      }
+    }
+
+    // Función para cargar estadísticas simples
+    function loadSimpleStats() {
+      fetch('/admin/simple_stats')
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            console.error('Error al cargar estadísticas:', data.error);
+            return;
+          }
+          
+          // Actualizar Free Fire LATAM
+          document.getElementById('ff-latam-units').textContent = data.freefire_latam.units;
+          document.getElementById('ff-latam-profit').textContent = '$' + data.freefire_latam.profit.toFixed(2);
+          
+          // Actualizar Free Fire Global
+          document.getElementById('ff-global-units').textContent = data.freefire_global.units;
+          document.getElementById('ff-global-profit').textContent = '$' + data.freefire_global.profit.toFixed(2);
+          
+          // Actualizar Blood Striker
+          document.getElementById('bs-units').textContent = data.bloodstriker.units;
+          document.getElementById('bs-profit').textContent = '$' + data.bloodstriker.profit.toFixed(2);
+        })
+        .catch(error => {
+          console.error('Error al cargar estadísticas:', error);
+        });
+    }
+
+    // Función para manejar el envío del formulario de rentabilidad
+    function handleProfitFormSubmit(event) {
+      const submitBtn = document.getElementById('profit-submit-btn');
+      const originalText = submitBtn.textContent;
+      
+      // Cambiar texto del botón para indicar que se está procesando
+      submitBtn.textContent = '⏳ Actualizando...';
+      submitBtn.disabled = true;
+      
+      // Permitir que el formulario se envíe normalmente
+      // Después del redirect, la página se recargará y mostrará el precio actualizado
+      
+      // Restaurar el botón después de un tiempo (en caso de error)
+      setTimeout(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }, 5000);
+    }
+
     // Inicializar
     document.addEventListener('DOMContentLoaded', function() {
       updatePackages();
+      
+      // Cargar estadísticas inmediatamente al cargar la página
+      loadSimpleStats();
+      
+      // Cargar estadísticas cuando se abre la pestaña de estadísticas
+      const statsTab = document.querySelector('[onclick="showTab(\'estadisticas\')"]');
+      if (statsTab) {
+        statsTab.addEventListener('click', function() {
+          setTimeout(loadSimpleStats, 100); // Pequeño delay para asegurar que la pestaña esté visible
+        });
+      }
+      
+      // Recargar estadísticas cada 30 segundos para mantenerlas actualizadas
+      setInterval(loadSimpleStats, 30000);
     });
   </script>
 </body>
