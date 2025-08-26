@@ -44,18 +44,20 @@ mail = Mail(app)
 def get_render_compatible_db_path():
     """Obtiene la ruta de la base de datos compatible con Render"""
     if os.environ.get('RENDER'):
-        # En Render, usar el directorio actual del proyecto
-        return os.path.join(os.getcwd(), 'usuarios.db')
+        # En Render, usar directamente el directorio raíz del proyecto
+        return 'usuarios.db'
     else:
-        # En desarrollo local
+        # En desarrollo local, permitir configuración personalizada
         return os.environ.get('DATABASE_PATH', 'usuarios.db')
 
 DATABASE = get_render_compatible_db_path()
 
-# Crear directorio para la base de datos si no existe
-db_dir = os.path.dirname(DATABASE)
-if db_dir and not os.path.exists(db_dir):
-    os.makedirs(db_dir, exist_ok=True)
+# En Render no necesitamos crear directorios, la base de datos se crea en el directorio raíz
+if not os.environ.get('RENDER'):
+    # Solo crear directorio en desarrollo local si es necesario
+    db_dir = os.path.dirname(DATABASE)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
 
 def get_db_connection_optimized():
     """Obtiene una conexión optimizada con configuraciones SQLite mejoradas"""
