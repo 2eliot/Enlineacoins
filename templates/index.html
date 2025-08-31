@@ -38,6 +38,13 @@
     <div class="icon-container">
       <svg class="icon" viewBox="0 0 24 24"><path d="M3 10L12 2l9 8v10a1 1 0 01-1 1h-6v-6H10v6H4a1 1 0 01-1-1V10z"/></svg>
       
+      <!-- Botón de Dashboard (para usuarios normales y admin) -->
+      <div class="dashboard-icon-container" onclick="window.location.href='/dashboard'" title="{% if session.get('is_admin') %}Dashboard Administrativo{% else %}Mi Dashboard{% endif %}">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+        </svg>
+      </div>
+      
       <!-- Botón de Noticias (solo para usuarios normales y cuando hay notificaciones) -->
       {% if not session.get('is_admin') and news_notification_count > 0 %}
       <div class="news-icon-container" onclick="window.location.href='/noticias'">

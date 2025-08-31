@@ -189,6 +189,26 @@ body {
   }
 }
 
+/* Contenedor del ícono de dashboard */
+.dashboard-icon-container {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.dashboard-icon-container:hover {
+  transform: scale(1.1);
+}
+
+.dashboard-icon-container .icon {
+  fill: #ffffff;
+  transition: fill 0.2s ease;
+}
+
+.dashboard-icon-container:hover .icon {
+  fill: #667eea;
+}
+
 /* Contenedor del ícono de noticias con notificación */
 .news-icon-container {
   position: relative;

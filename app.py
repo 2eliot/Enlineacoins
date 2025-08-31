@@ -1079,6 +1079,13 @@ def index():
     if 'usuario' not in session:
         return redirect('/auth')
     
+    # Ejecutar limpieza automática de transacciones antiguas (solo en la primera carga)
+    if request.args.get('page', 1, type=int) == 1:
+        try:
+            clean_old_transactions()
+        except Exception as e:
+            print(f"Error en limpieza automática de transacciones: {e}")
+    
     # Obtener parámetros de paginación
     page = request.args.get('page', 1, type=int)
     per_page = 10  # Transacciones por página
@@ -1100,26 +1107,6 @@ def index():
             all_transactions.sort(key=lambda x: x.get('fecha', ''), reverse=True)
             # Tomar solo las primeras per_page transacciones
             transactions_data['transactions'] = all_transactions[:per_page]
-        
-        # Limitar transacciones del admin a 15 páginas (150 transacciones)
-        # Solo ejecutar limpieza si estamos en la página 1 para evitar múltiples ejecuciones
-        if page == 1:
-            conn = get_db_connection()
-            try:
-                # Eliminar transacciones que excedan las 150 más recientes (15 páginas x 10 por página)
-                conn.execute('''
-                    DELETE FROM transacciones 
-                    WHERE id NOT IN (
-                        SELECT id FROM transacciones 
-                        ORDER BY fecha DESC 
-                        LIMIT 150
-                    )
-                ''')
-                conn.commit()
-            except Exception as e:
-                print(f"Error al limpiar transacciones antiguas del admin: {e}")
-            finally:
-                conn.close()
         
         balance = 0  # Admin no tiene saldo
     else:
@@ -2181,14 +2168,14 @@ def validar_freefire_latam():
                 VALUES (?, ?, ?, ?, ?)
             ''', (user_id, numero_control, pines_texto, transaccion_id, monto_transaccion))
             
-            # Limitar transacciones a 30 por usuario
+            # Limitar transacciones a 100 por usuario (aumentado de 30 para evitar eliminaciones frecuentes)
             conn.execute('''
                 DELETE FROM transacciones 
                 WHERE usuario_id = ? AND id NOT IN (
                     SELECT id FROM transacciones 
                     WHERE usuario_id = ? 
                     ORDER BY fecha DESC 
-                    LIMIT 30
+                    LIMIT 100
                 )
             ''', (user_id, user_id))
             
@@ -2589,14 +2576,14 @@ def approve_bloodstriker_transaction(transaction_id):
                 bs_transaction['monto']
             ))
             
-            # Limitar transacciones a 30 por usuario
+            # Limitar transacciones a 100 por usuario (aumentado de 30 para evitar eliminaciones frecuentes)
             conn.execute('''
                 DELETE FROM transacciones 
                 WHERE usuario_id = ? AND id NOT IN (
                     SELECT id FROM transacciones 
                     WHERE usuario_id = ? 
                     ORDER BY fecha DESC 
-                    LIMIT 30
+                    LIMIT 100
                 )
             ''', (bs_transaction['usuario_id'], bs_transaction['usuario_id']))
             
@@ -3272,6 +3259,66 @@ def clean_old_weekly_sales():
     finally:
         conn.close()
 
+def clean_old_transactions():
+    """Limpia transacciones antiguas manteniendo solo las del último mes (mejorado)"""
+    from datetime import datetime, timedelta
+    
+    # Verificar si ya se ejecutó la limpieza hoy
+    last_cleanup_file = 'last_cleanup.txt'
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    try:
+        if os.path.exists(last_cleanup_file):
+            with open(last_cleanup_file, 'r') as f:
+                last_cleanup_date = f.read().strip()
+            
+            if last_cleanup_date == today:
+                # Ya se ejecutó la limpieza hoy, no hacer nada
+                return 0
+    except:
+        pass  # Si hay error leyendo el archivo, continuar con la limpieza
+    
+    conn = get_db_connection()
+    
+    try:
+        # Calcular fecha límite (1 MES atrás en lugar de 1 semana)
+        fecha_limite = datetime.now() - timedelta(days=30)  # 30 días = 1 mes
+        fecha_limite_str = fecha_limite.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Eliminar transacciones normales más antiguas de 1 mes
+        deleted_normal = conn.execute('''
+            DELETE FROM transacciones 
+            WHERE fecha < ?
+        ''', (fecha_limite_str,)).rowcount
+        
+        # Eliminar transacciones de Blood Striker más antiguas de 1 mes (excepto pendientes)
+        deleted_bs = conn.execute('''
+            DELETE FROM transacciones_bloodstriker 
+            WHERE fecha < ? AND estado != 'pendiente'
+        ''', (fecha_limite_str,)).rowcount
+        
+        conn.commit()
+        
+        total_deleted = deleted_normal + deleted_bs
+        if total_deleted > 0:
+            print(f"🧹 Limpieza automática diaria: {total_deleted} transacciones antiguas eliminadas ({deleted_normal} normales, {deleted_bs} Blood Striker)")
+        
+        # Guardar fecha de última limpieza
+        try:
+            with open(last_cleanup_file, 'w') as f:
+                f.write(today)
+        except:
+            pass  # Si no se puede escribir el archivo, no es crítico
+        
+        return total_deleted
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error en clean_old_transactions: {str(e)}")
+        return 0
+    finally:
+        conn.close()
+
 def reset_all_weekly_sales():
     """Resetea TODAS las estadísticas de ventas semanales (elimina todos los registros)"""
     conn = get_db_connection()
@@ -3597,6 +3644,249 @@ def validar_freefire():
     
     # Redirect para evitar reenvío del formulario (patrón POST-Redirect-GET)
     return redirect('/juego/freefire?compra=exitosa')
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard con filtros de fecha y estadísticas - Accesible para usuarios y admin"""
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    is_admin = session.get('is_admin', False)
+    
+    user_id = session.get('user_db_id')
+    
+    # Para admin, mostrar estadísticas globales
+    if is_admin:
+        user_id = None  # Admin ve todas las transacciones
+    elif not user_id:
+        flash('Error al acceder al dashboard', 'error')
+        return redirect('/')
+    
+    # Obtener parámetros de filtro de fecha
+    fecha_inicio = request.args.get('inicio', '')
+    fecha_fin = request.args.get('fin', '')
+    preset = request.args.get('preset', 'hoy')  # Por defecto "hoy"
+    
+    # Manejar presets de fecha
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    
+    if preset == 'hoy' or (not preset and not fecha_inicio and not fecha_fin):
+        # Por defecto siempre mostrar "hoy"
+        fecha_inicio = today.strftime('%Y-%m-%d')
+        fecha_fin = today.strftime('%Y-%m-%d')
+        preset = 'hoy'  # Asegurar que el preset esté marcado como activo
+    elif preset == 'ayer':
+        yesterday = today - timedelta(days=1)
+        fecha_inicio = yesterday.strftime('%Y-%m-%d')
+        fecha_fin = yesterday.strftime('%Y-%m-%d')
+    elif preset == 'antes_ayer':
+        day_before_yesterday = today - timedelta(days=2)
+        fecha_inicio = day_before_yesterday.strftime('%Y-%m-%d')
+        fecha_fin = day_before_yesterday.strftime('%Y-%m-%d')
+    elif not fecha_inicio or not fecha_fin:
+        # Si no se proporcionan fechas válidas, usar "hoy" por defecto
+        fecha_inicio = today.strftime('%Y-%m-%d')
+        fecha_fin = today.strftime('%Y-%m-%d')
+        preset = 'hoy'
+    
+    # Actualizar saldo desde la base de datos y obtener transacciones
+    conn = get_db_connection()
+    
+    if is_admin:
+        # Admin ve estadísticas globales
+        user = None
+        
+        # Obtener todas las transacciones filtradas por fecha
+        transacciones_filtradas = conn.execute('''
+            SELECT t.*, u.nombre, u.apellido
+            FROM transacciones t
+            JOIN usuarios u ON t.usuario_id = u.id
+            WHERE DATE(t.fecha) BETWEEN ? AND ?
+            ORDER BY t.fecha DESC
+        ''', (fecha_inicio, fecha_fin)).fetchall()
+        
+        # Obtener todas las transacciones de Blood Striker filtradas por fecha
+        transacciones_bs = conn.execute('''
+            SELECT bs.*, u.nombre, u.apellido, p.nombre as paquete_nombre
+            FROM transacciones_bloodstriker bs
+            JOIN usuarios u ON bs.usuario_id = u.id
+            JOIN precios_bloodstriker p ON bs.paquete_id = p.id
+            WHERE DATE(bs.fecha) BETWEEN ? AND ? AND bs.estado = 'aprobado'
+            ORDER BY bs.fecha DESC
+        ''', (fecha_inicio, fecha_fin)).fetchall()
+        
+        # Obtener los 2 usuarios con más compras en el período
+        top_users = conn.execute('''
+            SELECT u.nombre, u.apellido, u.correo, COUNT(*) as total_compras, SUM(ABS(t.monto)) as monto_total
+            FROM transacciones t
+            JOIN usuarios u ON t.usuario_id = u.id
+            WHERE DATE(t.fecha) BETWEEN ? AND ?
+            GROUP BY u.id, u.nombre, u.apellido, u.correo
+            ORDER BY total_compras DESC, monto_total DESC
+            LIMIT 2
+        ''', (fecha_inicio, fecha_fin)).fetchall()
+        
+    else:
+        # Usuario normal ve solo sus datos
+        user = conn.execute('SELECT * FROM usuarios WHERE id = ?', (user_id,)).fetchone()
+        if user:
+            session['saldo'] = user['saldo']
+        
+        # Obtener transacciones del usuario filtradas por fecha
+        transacciones_filtradas = conn.execute('''
+            SELECT t.*, u.nombre, u.apellido
+            FROM transacciones t
+            JOIN usuarios u ON t.usuario_id = u.id
+            WHERE t.usuario_id = ? AND DATE(t.fecha) BETWEEN ? AND ?
+            ORDER BY t.fecha DESC
+        ''', (user_id, fecha_inicio, fecha_fin)).fetchall()
+        
+        # Obtener transacciones de Blood Striker del usuario filtradas por fecha
+        transacciones_bs = conn.execute('''
+            SELECT bs.*, u.nombre, u.apellido, p.nombre as paquete_nombre
+            FROM transacciones_bloodstriker bs
+            JOIN usuarios u ON bs.usuario_id = u.id
+            JOIN precios_bloodstriker p ON bs.paquete_id = p.id
+            WHERE bs.usuario_id = ? AND DATE(bs.fecha) BETWEEN ? AND ? AND bs.estado = 'aprobado'
+            ORDER BY bs.fecha DESC
+        ''', (user_id, fecha_inicio, fecha_fin)).fetchall()
+        
+        top_users = []  # Los usuarios normales no ven top users
+    
+    conn.close()
+    
+    # Procesar transacciones normales
+    transacciones_procesadas = []
+    monto_total = 0
+    
+    # Obtener información de paquetes para mostrar nombres correctos
+    packages_info = get_package_info_with_prices()
+    bloodstriker_packages_info = get_bloodstriker_prices()
+    freefire_global_packages_info = get_freefire_global_prices()
+    
+    for transaction in transacciones_filtradas:
+        transaction_dict = dict(transaction)
+        monto = abs(transaction['monto'])
+        monto_total += monto
+        
+        # Buscar el paquete que coincida con el monto
+        paquete_encontrado = False
+        
+        # Buscar en Free Fire LATAM
+        for package_id, package_info in packages_info.items():
+            if abs(monto - package_info['precio']) < 0.01:
+                transaction_dict['paquete'] = package_info['nombre']
+                paquete_encontrado = True
+                break
+        
+        # Si no se encuentra en Free Fire LATAM, buscar en Free Fire Global
+        if not paquete_encontrado:
+            for package_id, package_info in freefire_global_packages_info.items():
+                if abs(monto - package_info['precio']) < 0.01:
+                    transaction_dict['paquete'] = package_info['nombre']
+                    paquete_encontrado = True
+                    break
+        
+        # Si no se encuentra en Free Fire Global, buscar en Blood Striker
+        if not paquete_encontrado:
+            for package_id, package_info in bloodstriker_packages_info.items():
+                if abs(monto - package_info['precio']) < 0.01:
+                    transaction_dict['paquete'] = package_info['nombre']
+                    paquete_encontrado = True
+                    break
+        
+        # Si no se encuentra coincidencia exacta, usar el nombre por defecto
+        if not paquete_encontrado:
+            transaction_dict['paquete'] = f"Paquete ${monto:.2f}"
+        
+        # Convertir fecha a zona horaria de Venezuela
+        transaction_dict['fecha'] = convert_to_venezuela_time(transaction_dict['fecha'])
+        transaction_dict['monto'] = monto
+        
+        transacciones_procesadas.append(transaction_dict)
+    
+    # Procesar transacciones de Blood Striker aprobadas
+    for bs_transaction in transacciones_bs:
+        transaction_dict = {
+            'fecha': convert_to_venezuela_time(bs_transaction['fecha']),
+            'monto': abs(bs_transaction['monto']),
+            'paquete': bs_transaction['paquete_nombre'],
+            'numero_control': bs_transaction['numero_control'],
+            'transaccion_id': bs_transaction['transaccion_id'],
+            'pin': f"ID: {bs_transaction['player_id']}",
+            'nombre': bs_transaction['nombre'],
+            'apellido': bs_transaction['apellido'],
+            'is_bloodstriker': True
+        }
+        monto_total += transaction_dict['monto']
+        transacciones_procesadas.append(transaction_dict)
+    
+    # Ordenar todas las transacciones por fecha
+    transacciones_procesadas.sort(key=lambda x: x['fecha'], reverse=True)
+    
+    # Calcular estadísticas
+    total_transacciones = len(transacciones_procesadas)
+    
+    # Calcular días analizados
+    try:
+        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        dias_analizados = (fecha_fin_dt - fecha_inicio_dt).days + 1
+    except:
+        dias_analizados = 1
+    
+    # Estadísticas por juego
+    stats_por_juego = {}
+    for transaction in transacciones_procesadas:
+        # Determinar el juego basado en el paquete o si es Blood Striker
+        if transaction.get('is_bloodstriker'):
+            juego = 'Blood Striker'
+        elif '💎' in transaction['paquete']:
+            if 'Tarjeta' in transaction['paquete']:
+                juego = 'Free Fire LATAM'
+            else:
+                # Distinguir entre Free Fire LATAM y Global por el formato del nombre
+                if any(x in transaction['paquete'] for x in ['110 💎', '341 💎', '572 💎', '1.166 💎', '2.376 💎', '6.138 💎']):
+                    juego = 'Free Fire LATAM'
+                else:
+                    juego = 'Free Fire Global'
+        elif '🪙' in transaction['paquete']:
+            juego = 'Blood Striker'
+        else:
+            juego = 'Otros'
+        
+        if juego not in stats_por_juego:
+            stats_por_juego[juego] = {'cantidad': 0, 'monto': 0}
+        
+        stats_por_juego[juego]['cantidad'] += 1
+        stats_por_juego[juego]['monto'] += transaction['monto']
+    
+    # Obtener contador de notificaciones de cartera para usuarios normales
+    wallet_notification_count = 0
+    if not is_admin and user_id:
+        wallet_notification_count = get_unread_wallet_credits_count(user_id)
+    
+    # Obtener contador de notificaciones de noticias
+    news_notification_count = 0
+    if user_id:
+        news_notification_count = get_unread_news_count(user_id)
+    
+    return render_template('dashboard.html', 
+                         user=user,
+                         transacciones=transacciones_procesadas,
+                         monto_total=monto_total,
+                         total_transacciones=total_transacciones,
+                         stats_por_juego=stats_por_juego,
+                         dias_analizados=dias_analizados,
+                         inicio=fecha_inicio,
+                         fin=fecha_fin,
+                         user_id=session.get('id', '00000'),
+                         balance=session.get('saldo', 0),
+                         is_admin=is_admin,
+                         top_users=top_users,
+                         wallet_notification_count=wallet_notification_count,
+                         news_notification_count=news_notification_count)
 
 @app.route('/logout')
 def logout():
