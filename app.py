@@ -1088,7 +1088,7 @@ def index():
     
     # Obtener parámetros de paginación
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Transacciones por página
+    per_page = 30  # Transacciones por página
     
     user_id = session.get('id', '00000')
     transactions_data = {}
