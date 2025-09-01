@@ -2092,11 +2092,11 @@ def validar_freefire_latam():
         flash(f'Saldo insuficiente. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
         return redirect('/juego/freefire_latam')
     
-    # Usar solo stock local (sin API externa)
+    # CRÍTICO: Usar pin manager para obtener pines ANTES de descontar saldo
     pin_manager = create_pin_manager(DATABASE)
     
     try:
-        # Solicitar pines usando solo stock local
+        # PASO 1: Intentar obtener los pines SIN descontar saldo aún
         if cantidad == 1:
             # Para un solo pin
             result = pin_manager.request_pin(monto_id)
@@ -2124,16 +2124,24 @@ def validar_freefire_latam():
                 source = result.get('source', 'local_stock')
                 sources_used = [source]
                 
-                # Mostrar advertencia pero continuar con los pines obtenidos
-                cantidad = len(pines_codigos)  # Actualizar cantidad a los pines realmente obtenidos
-                flash(f'Advertencia: Solo se obtuvieron {cantidad} pines de los {result.get("cantidad_solicitada", cantidad)} solicitados', 'warning')
+                # Actualizar cantidad y precio total para los pines realmente obtenidos
+                cantidad_original = cantidad
+                cantidad = len(pines_codigos)
+                precio_total = precio_unitario * cantidad  # Recalcular precio
+                
+                flash(f'Advertencia: Solo se obtuvieron {cantidad} pines de los {cantidad_original} solicitados. Precio ajustado a ${precio_total:.2f}', 'warning')
             else:
                 flash(f'Error al obtener pines. {result.get("message", "Error desconocido")}', 'error')
                 return redirect('/juego/freefire_latam')
         
-        # Verificar que se obtuvieron pines
+        # PASO 2: Verificar que se obtuvieron pines exitosamente
         if not pines_codigos:
             flash('No se pudieron obtener pines. Intente nuevamente.', 'error')
+            return redirect('/juego/freefire_latam')
+        
+        # PASO 3: AHORA SÍ verificar saldo final después de saber cuántos pines obtuvimos
+        if not is_admin and saldo_actual < precio_total:
+            flash(f'Saldo insuficiente para la cantidad obtenida. Necesitas ${precio_total:.2f} pero tienes ${saldo_actual:.2f}', 'error')
             return redirect('/juego/freefire_latam')
         
         # Generar datos de la transacción

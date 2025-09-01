@@ -170,13 +170,58 @@
         <span class="page disabled">«</span>
       {% endif %}
       
-      {% for page_num in range(1, pagination.total_pages + 1) %}
-        {% if page_num == pagination.page %}
-          <span class="page active">{{ page_num }}</span>
+      {% set current_page = pagination.page %}
+      {% set total_pages = pagination.total_pages %}
+      
+      <!-- Paginación inteligente para todas las resoluciones -->
+      {% if total_pages <= 9 %}
+        <!-- Mostrar todas las páginas si son pocas -->
+        {% for page_num in range(1, total_pages + 1) %}
+          {% if page_num == current_page %}
+            <span class="page active">{{ page_num }}</span>
+          {% else %}
+            <a href="/?page={{ page_num }}" class="page">{{ page_num }}</a>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <!-- Paginación inteligente para muchas páginas -->
+        {% if current_page <= 5 %}
+          <!-- Mostrar primeras páginas -->
+          {% for page_num in range(1, 8) %}
+            {% if page_num == current_page %}
+              <span class="page active">{{ page_num }}</span>
+            {% else %}
+              <a href="/?page={{ page_num }}" class="page">{{ page_num }}</a>
+            {% endif %}
+          {% endfor %}
+          <span class="page disabled">...</span>
+          <a href="/?page={{ total_pages }}" class="page">{{ total_pages }}</a>
+        {% elif current_page >= total_pages - 4 %}
+          <!-- Mostrar últimas páginas -->
+          <a href="/?page=1" class="page">1</a>
+          <span class="page disabled">...</span>
+          {% for page_num in range(total_pages - 6, total_pages + 1) %}
+            {% if page_num == current_page %}
+              <span class="page active">{{ page_num }}</span>
+            {% else %}
+              <a href="/?page={{ page_num }}" class="page">{{ page_num }}</a>
+            {% endif %}
+          {% endfor %}
         {% else %}
-          <a href="/?page={{ page_num }}" class="page">{{ page_num }}</a>
+          <!-- Mostrar páginas del medio -->
+          <a href="/?page=1" class="page">1</a>
+          <span class="page disabled">...</span>
+          {% for page_num in range(current_page - 2, current_page + 3) %}
+            {% if page_num == current_page %}
+              <span class="page active">{{ page_num }}</span>
+            {% else %}
+              <a href="/?page={{ page_num }}" class="page">{{ page_num }}</a>
+            {% endif %}
+          {% endfor %}
+          <span class="page disabled">...</span>
+          <a href="/?page={{ total_pages }}" class="page">{{ total_pages }}</a>
         {% endif %}
-      {% endfor %}
+      {% endif %}
       
       {% if pagination.has_next %}
         <a href="/?page={{ pagination.next_num }}" class="page">»</a>

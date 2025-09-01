@@ -541,7 +541,33 @@ body {
   display: flex;
   justify-content: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0 1rem;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
+
+.pagination::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pagination::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.pagination::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.pagination::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 .page {
   padding: 0.5rem 0.75rem;
   border: 1px solid #aaa;
@@ -550,6 +576,10 @@ body {
   text-decoration: none;
   color: #333;
   transition: all 0.2s ease;
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .page:hover {
   background-color: #eee;
@@ -565,6 +595,35 @@ body {
   border-color: #dee2e6;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Responsive para paginación */
+@media (max-width: 768px) {
+  .pagination {
+    gap: 0.25rem;
+    padding: 0 0.5rem;
+    justify-content: flex-start;
+  }
+  
+  .page {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+    min-width: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination {
+    gap: 0.2rem;
+    padding: 0 0.25rem;
+    justify-content: flex-start;
+  }
+  
+  .page {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
+    min-width: 32px;
+  }
 }
 
 /* Responsive */
