@@ -823,90 +823,677 @@ body {
   font-size: 0.75rem;
 }
 
-/* Responsive */
+/* Responsive - Paneles compactos para móviles */
+@media (max-width: 1024px) {
+  .admin-main {
+    padding: 12px;
+  }
+  
+  .stats-section {
+    gap: 12px;
+  }
+  
+  .stat-card {
+    padding: 16px;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.8rem;
+  }
+  
+  .stat-number {
+    font-size: 1.6rem;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-header {
+    padding: 8px 12px;
     flex-direction: column;
-    gap: 1rem;
+    gap: 8px;
     text-align: center;
   }
   
+  .admin-title h1 {
+    font-size: 1.2rem;
+  }
+  
+  .admin-info {
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+  
   .admin-main {
-    padding: 1rem;
+    padding: 6px;
   }
   
   .stats-section {
     grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .stat-card {
+    padding: 10px;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+  
+  .stat-number {
+    font-size: 1.4rem;
+  }
+  
+  .tabs-container {
+    margin-top: 12px;
+  }
+  
+  .tabs-header {
+    flex-wrap: wrap;
+  }
+  
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .tab-content {
+    padding: 12px;
+  }
+  
+  .users-section h2,
+  .pins-section h2,
+  .prices-section h2,
+  .news-section h2 {
+    font-size: 1rem;
+    padding: 8px 12px;
+    margin-bottom: 8px;
   }
   
   .users-table th,
   .users-table td {
-    padding: 0.5rem;
-    font-size: 0.8rem;
+    padding: 6px;
+    font-size: 0.7rem;
   }
   
   .actions {
     flex-direction: column;
     align-items: stretch;
+    min-width: 200px;
   }
   
   .inline-form {
     justify-content: space-between;
-  }
-  
-  .small-input {
-    width: 60px;
-  }
-  
-  .pin-forms-container {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .pin-form-section {
-    padding: 1rem;
-  }
-  
-  .stock-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .tabs-header {
-    flex-direction: column;
-  }
-  
-  .tab-button {
-    border-bottom: none;
-    border-right: 3px solid transparent;
-  }
-  
-  .tab-button.active {
-    border-right-color: #667eea;
-    border-bottom-color: transparent;
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .prices-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .users-table-container {
-    font-size: 0.7rem;
+    gap: 4px;
   }
   
   .small-input {
     width: 50px;
+    padding: 3px 6px;
+    font-size: 0.7rem;
   }
   
   .btn {
-    padding: 0.3rem 0.6rem;
+    padding: 3px 6px;
     font-size: 0.7rem;
+  }
+  
+  .pin-forms-container {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .pin-form-section {
+    padding: 8px;
+  }
+  
+  .pin-form-section h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  
+  .batch-info {
+    font-size: 0.7rem;
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+  
+  .form-group {
+    gap: 6px;
+  }
+  
+  .form-group label {
+    font-size: 0.7rem;
+    margin-bottom: 3px;
+  }
+  
+  .form-group select,
+  .form-group input,
+  .form-group textarea {
+    padding: 6px;
+    font-size: 0.7rem;
+  }
+  
+  .form-help {
+    font-size: 0.6rem;
+    margin-top: 2px;
+  }
+  
+  .stock-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  
+  .stock-item {
+    padding: 8px;
+    gap: 6px;
+  }
+  
+  .stock-count {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+  }
+  
+  .source-config {
+    padding: 6px;
+    margin: 4px 0;
+  }
+  
+  .source-label {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+  
+  .btn-source-toggle {
+    padding: 3px 6px;
+    font-size: 0.6rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .prices-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .price-overview-card {
+    padding: 8px;
+  }
+  
+  .price-overview-header h4 {
+    font-size: 0.8rem;
+  }
+  
+  .price-badge {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+  }
+  
+  .price-overview-description {
+    font-size: 0.7rem;
+  }
+  
+  .news-management {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .create-news-container,
+  .existing-news-container {
+    padding: 8px;
+  }
+  
+  .create-news-container h3,
+  .existing-news-container h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  
+  .admin-news-card {
+    padding: 8px;
+  }
+  
+  .admin-news-title {
+    font-size: 0.8rem;
+  }
+  
+  .admin-news-date {
+    font-size: 0.6rem;
+  }
+  
+  .admin-news-important {
+    padding: 1px 4px;
+    font-size: 0.6rem;
+  }
+  
+  .admin-news-content p {
+    font-size: 0.7rem;
+  }
+  
+  .btn-delete-news {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-header {
+    padding: 4px 6px;
+  }
+  
+  .admin-title h1 {
+    font-size: 1rem;
+  }
+  
+  .admin-info {
+    gap: 4px;
+    font-size: 0.7rem;
+  }
+  
+  .admin-main {
+    padding: 4px;
+  }
+  
+  .stats-section {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  
+  .stat-card {
+    padding: 8px;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.6rem;
+    margin-bottom: 3px;
+  }
+  
+  .stat-number {
+    font-size: 1.2rem;
+  }
+  
+  .tabs-container {
+    margin-top: 8px;
+  }
+  
+  .tab-button {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+    min-width: 80px;
+  }
+  
+  .tab-content {
+    padding: 8px;
+  }
+  
+  .users-section h2,
+  .pins-section h2,
+  .prices-section h2,
+  .news-section h2 {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+  }
+  
+  .users-table th,
+  .users-table td {
+    padding: 4px;
+    font-size: 0.6rem;
+  }
+  
+  .actions {
+    min-width: 150px;
+  }
+  
+  .small-input {
+    width: 40px;
+    padding: 2px 4px;
+    font-size: 0.6rem;
+  }
+  
+  .btn {
+    padding: 2px 4px;
+    font-size: 0.6rem;
+  }
+  
+  .pin-forms-container {
+    gap: 6px;
+  }
+  
+  .pin-form-section {
+    padding: 6px;
+  }
+  
+  .pin-form-section h3 {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+  
+  .batch-info {
+    font-size: 0.6rem;
+    padding: 4px;
+    margin-bottom: 6px;
+  }
+  
+  .form-group {
+    gap: 4px;
+  }
+  
+  .form-group label {
+    font-size: 0.6rem;
+    margin-bottom: 2px;
+  }
+  
+  .form-group select,
+  .form-group input,
+  .form-group textarea {
+    padding: 4px;
+    font-size: 0.6rem;
+  }
+  
+  .form-help {
+    font-size: 0.5rem;
+    margin-top: 1px;
+  }
+  
+  .stock-grid {
+    gap: 4px;
+  }
+  
+  .stock-item {
+    padding: 6px;
+    gap: 4px;
+  }
+  
+  .stock-count {
+    padding: 1px 4px;
+    font-size: 0.6rem;
+  }
+  
+  .source-config {
+    padding: 4px;
+    margin: 2px 0;
+  }
+  
+  .source-label {
+    font-size: 0.6rem;
+    margin-bottom: 2px;
+  }
+  
+  .btn-source-toggle {
+    padding: 2px 4px;
+    font-size: 0.5rem;
+  }
+  
+  .price-overview-card {
+    padding: 6px;
+  }
+  
+  .price-overview-header h4 {
+    font-size: 0.7rem;
+  }
+  
+  .price-badge {
+    padding: 1px 4px;
+    font-size: 0.6rem;
+  }
+  
+  .price-overview-description {
+    font-size: 0.6rem;
+  }
+  
+  .create-news-container,
+  .existing-news-container {
+    padding: 6px;
+  }
+  
+  .create-news-container h3,
+  .existing-news-container h3 {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+  
+  .admin-news-card {
+    padding: 6px;
+  }
+  
+  .admin-news-title {
+    font-size: 0.7rem;
+  }
+  
+  .admin-news-date {
+    font-size: 0.5rem;
+  }
+  
+  .admin-news-important {
+    padding: 1px 3px;
+    font-size: 0.5rem;
+  }
+  
+  .admin-news-content p {
+    font-size: 0.6rem;
+  }
+  
+  .btn-delete-news {
+    padding: 2px 4px;
+    font-size: 0.6rem;
+  }
+}
+
+/* Pantallas extra pequeñas */
+@media (max-width: 360px) {
+  .admin-header {
+    padding: 3px 4px;
+  }
+  
+  .admin-title h1 {
+    font-size: 0.9rem;
+  }
+  
+  .admin-info {
+    gap: 3px;
+    font-size: 0.6rem;
+  }
+  
+  .logout-btn {
+    padding: 3px 6px;
+    font-size: 0.6rem;
+  }
+  
+  .admin-main {
+    padding: 3px;
+  }
+  
+  .stats-section {
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  
+  .stat-card {
+    padding: 6px;
+  }
+  
+  .stat-card h3 {
+    font-size: 0.5rem;
+    margin-bottom: 2px;
+  }
+  
+  .stat-number {
+    font-size: 1rem;
+  }
+  
+  .tabs-container {
+    margin-top: 6px;
+  }
+  
+  .tab-button {
+    padding: 4px 6px;
+    font-size: 0.6rem;
+    min-width: 60px;
+  }
+  
+  .tab-content {
+    padding: 6px;
+  }
+  
+  .users-section h2,
+  .pins-section h2,
+  .prices-section h2,
+  .news-section h2 {
+    font-size: 0.7rem;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+  }
+  
+  .users-table th,
+  .users-table td {
+    padding: 3px;
+    font-size: 0.5rem;
+  }
+  
+  .actions {
+    min-width: 120px;
+  }
+  
+  .small-input {
+    width: 30px;
+    padding: 1px 2px;
+    font-size: 0.5rem;
+  }
+  
+  .btn {
+    padding: 1px 3px;
+    font-size: 0.5rem;
+  }
+  
+  .pin-forms-container {
+    gap: 4px;
+  }
+  
+  .pin-form-section {
+    padding: 4px;
+  }
+  
+  .pin-form-section h3 {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+  
+  .batch-info {
+    font-size: 0.5rem;
+    padding: 3px;
+    margin-bottom: 4px;
+  }
+  
+  .form-group {
+    gap: 3px;
+  }
+  
+  .form-group label {
+    font-size: 0.5rem;
+    margin-bottom: 1px;
+  }
+  
+  .form-group select,
+  .form-group input,
+  .form-group textarea {
+    padding: 3px;
+    font-size: 0.5rem;
+  }
+  
+  .form-help {
+    font-size: 0.4rem;
+    margin-top: 1px;
+  }
+  
+  .stock-grid {
+    gap: 3px;
+  }
+  
+  .stock-item {
+    padding: 4px;
+    gap: 3px;
+  }
+  
+  .stock-count {
+    padding: 1px 3px;
+    font-size: 0.5rem;
+  }
+  
+  .source-config {
+    padding: 3px;
+    margin: 1px 0;
+  }
+  
+  .source-label {
+    font-size: 0.5rem;
+    margin-bottom: 1px;
+  }
+  
+  .btn-source-toggle {
+    padding: 1px 3px;
+    font-size: 0.4rem;
+  }
+  
+  .price-overview-card {
+    padding: 4px;
+  }
+  
+  .price-overview-header h4 {
+    font-size: 0.6rem;
+  }
+  
+  .price-badge {
+    padding: 1px 3px;
+    font-size: 0.5rem;
+  }
+  
+  .price-overview-description {
+    font-size: 0.5rem;
+  }
+  
+  .create-news-container,
+  .existing-news-container {
+    padding: 4px;
+  }
+  
+  .create-news-container h3,
+  .existing-news-container h3 {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+  
+  .admin-news-card {
+    padding: 4px;
+  }
+  
+  .admin-news-title {
+    font-size: 0.6rem;
+  }
+  
+  .admin-news-date {
+    font-size: 0.4rem;
+  }
+  
+  .admin-news-important {
+    padding: 1px 2px;
+    font-size: 0.4rem;
+  }
+  
+  .admin-news-content p {
+    font-size: 0.5rem;
+  }
+  
+  .btn-delete-news {
+    padding: 1px 3px;
+    font-size: 0.5rem;
   }
 }
 
