@@ -248,6 +248,20 @@ def init_db():
             )
         ''')
         
+        # Tabla de notificaciones personalizadas
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notificaciones_personalizadas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                titulo TEXT NOT NULL,
+                mensaje TEXT NOT NULL,
+                tipo TEXT DEFAULT 'info',
+                visto BOOLEAN DEFAULT FALSE,
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
+        
         # Insertar configuración por defecto si no existe (todos en local)
         cursor.execute('SELECT COUNT(*) FROM configuracion_fuentes_pines')
         if cursor.fetchone()[0] == 0:
@@ -1012,6 +1026,110 @@ def delete_news(news_id):
     conn.commit()
     conn.close()
 
+# Funciones para notificaciones personalizadas
+def create_personal_notification(user_id, titulo, mensaje, tipo='success'):
+    """Crea una notificación personalizada para un usuario específico"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS notificaciones_personalizadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            titulo TEXT NOT NULL,
+            mensaje TEXT NOT NULL,
+            tipo TEXT DEFAULT 'info',
+            visto BOOLEAN DEFAULT FALSE,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    cursor = conn.execute('''
+        INSERT INTO notificaciones_personalizadas (usuario_id, titulo, mensaje, tipo)
+        VALUES (?, ?, ?, ?)
+    ''', (user_id, titulo, mensaje, tipo))
+    
+    notification_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return notification_id
+
+def get_user_personal_notifications(user_id):
+    """Obtiene las notificaciones personalizadas de un usuario"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS notificaciones_personalizadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            titulo TEXT NOT NULL,
+            mensaje TEXT NOT NULL,
+            tipo TEXT DEFAULT 'info',
+            visto BOOLEAN DEFAULT FALSE,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    notifications = conn.execute('''
+        SELECT * FROM notificaciones_personalizadas 
+        WHERE usuario_id = ? AND visto = FALSE
+        ORDER BY fecha DESC
+        LIMIT 10
+    ''', (user_id,)).fetchall()
+    conn.close()
+    return notifications
+
+def get_unread_personal_notifications_count(user_id):
+    """Obtiene el número de notificaciones personalizadas no leídas"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS notificaciones_personalizadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            titulo TEXT NOT NULL,
+            mensaje TEXT NOT NULL,
+            tipo TEXT DEFAULT 'info',
+            visto BOOLEAN DEFAULT FALSE,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    count = conn.execute('''
+        SELECT COUNT(*) FROM notificaciones_personalizadas 
+        WHERE usuario_id = ? AND visto = FALSE
+    ''', (user_id,)).fetchone()[0]
+    conn.close()
+    
+    return 1 if count > 0 else 0
+
+def mark_personal_notifications_as_read(user_id):
+    """Marca todas las notificaciones personalizadas como leídas y las elimina"""
+    conn = get_db_connection()
+    # Crear tabla si no existe
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS notificaciones_personalizadas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            titulo TEXT NOT NULL,
+            mensaje TEXT NOT NULL,
+            tipo TEXT DEFAULT 'info',
+            visto BOOLEAN DEFAULT FALSE,
+            fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
+    # Eliminar todas las notificaciones del usuario (para que desaparezcan después de verlas)
+    conn.execute('''
+        DELETE FROM notificaciones_personalizadas 
+        WHERE usuario_id = ?
+    ''', (user_id,))
+    conn.commit()
+    conn.close()
+
 
 # Función de debug para mostrar información de la base de datos
 def debug_database_info():
@@ -1145,8 +1263,15 @@ def index():
     
     # Obtener contador de notificaciones de noticias
     news_notification_count = 0
+    personal_notification_count = 0
     if 'user_db_id' in session:
         news_notification_count = get_unread_news_count(session['user_db_id'])
+        # Obtener contador de notificaciones personalizadas (solo para usuarios normales)
+        if not is_admin:
+            personal_notification_count = get_unread_personal_notifications_count(session['user_db_id'])
+    
+    # Combinar notificaciones de noticias y personalizadas
+    total_notification_count = news_notification_count + personal_notification_count
     
     return render_template('index.html', 
                          user_id=user_id, 
@@ -1155,7 +1280,9 @@ def index():
                          pagination=transactions_data['pagination'],
                          is_admin=is_admin,
                          wallet_notification_count=wallet_notification_count,
-                         news_notification_count=news_notification_count)
+                         news_notification_count=news_notification_count,
+                         personal_notification_count=personal_notification_count,
+                         total_notification_count=total_notification_count)
 
 @app.route('/auth')
 def auth():
@@ -2605,6 +2732,11 @@ def approve_bloodstriker_transaction(transaction_id):
                 bs_transaction['precio'], 
                 1
             )
+            
+            # Crear notificación personalizada para el usuario
+            titulo = "🎯 Recarga Blood Striker Aprobada"
+            mensaje = f"Tu recarga de {bs_transaction['paquete_nombre']} por ${bs_transaction['precio']:.2f} ha sido aprobada exitosamente. ID: {bs_transaction['player_id']}"
+            create_personal_notification(bs_transaction['usuario_id'], titulo, mensaje, 'success')
         
         conn.close()
         
@@ -2732,6 +2864,44 @@ def noticias():
     
     return render_template('noticias.html', 
                          noticias=noticias_list,
+                         user_id=session.get('id', '00000'),
+                         is_admin=is_admin)
+
+@app.route('/notificaciones')
+def notificaciones():
+    """Ruta unificada para ver noticias y notificaciones personalizadas"""
+    if 'usuario' not in session:
+        return redirect('/auth')
+    
+    user_id = session.get('user_db_id')
+    is_admin = session.get('is_admin', False)
+    
+    # Para admin, usar ID 0 y permitir acceso
+    if is_admin:
+        user_id = 0
+    elif not user_id:
+        flash('Error al acceder a las notificaciones', 'error')
+        return redirect('/')
+    
+    # Para usuarios normales, obtener y procesar notificaciones personalizadas
+    notificaciones_personalizadas = []
+    if not is_admin:
+        # Obtener notificaciones personalizadas antes de marcarlas como leídas
+        notificaciones_personalizadas = get_user_personal_notifications(user_id)
+        
+        # Marcar notificaciones personalizadas como leídas (las elimina)
+        if notificaciones_personalizadas:
+            mark_personal_notifications_as_read(user_id)
+        
+        # Marcar noticias como leídas
+        mark_news_as_read(user_id)
+    
+    # Obtener noticias para mostrar
+    noticias_list = get_user_news(user_id)
+    
+    return render_template('noticias.html', 
+                         noticias=noticias_list,
+                         notificaciones_personalizadas=notificaciones_personalizadas,
                          user_id=session.get('id', '00000'),
                          is_admin=is_admin)
 
@@ -3119,9 +3289,9 @@ def get_profit_analysis():
     return freefire_latam_analysis + freefire_global_analysis + bloodstriker_analysis
 
 def register_weekly_sale(juego, paquete_id, paquete_nombre, precio_venta, cantidad=1):
-    """Registra una venta en las estadísticas semanales"""
+    """Registra una venta en las estadísticas diarias (corregido para resetear a las 12 AM)"""
     from datetime import datetime
-    import calendar
+    import pytz
     
     conn = get_db_connection()
     
@@ -3130,16 +3300,18 @@ def register_weekly_sale(juego, paquete_id, paquete_nombre, precio_venta, cantid
     ganancia_unitaria = precio_venta - precio_compra
     ganancia_total = ganancia_unitaria * cantidad
     
-    # Calcular semana del año (formato: YYYY-WW)
-    now = datetime.now()
-    year, week, _ = now.isocalendar()
-    semana_year = f"{year}-{week:02d}"
+    # Usar zona horaria de Venezuela para calcular el día correcto
+    venezuela_tz = pytz.timezone('America/Caracas')
+    now_venezuela = datetime.now(venezuela_tz)
     
-    # Verificar si ya existe un registro para esta semana y paquete
+    # Calcular día del año (formato: YYYY-MM-DD) - resetea a las 12:00 AM
+    dia_year = now_venezuela.strftime('%Y-%m-%d')
+    
+    # Verificar si ya existe un registro para este día y paquete
     existing = conn.execute('''
         SELECT id, cantidad_vendida, ganancia_total FROM ventas_semanales 
         WHERE juego = ? AND paquete_id = ? AND semana_year = ?
-    ''', (juego, paquete_id, semana_year)).fetchone()
+    ''', (juego, paquete_id, dia_year)).fetchone()
     
     if existing:
         # Actualizar registro existente
@@ -3159,19 +3331,22 @@ def register_weekly_sale(juego, paquete_id, paquete_nombre, precio_venta, cantid
              ganancia_unitaria, cantidad_vendida, ganancia_total, semana_year)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (juego, paquete_id, paquete_nombre, precio_venta, precio_compra, 
-              ganancia_unitaria, cantidad, ganancia_total, semana_year))
+              ganancia_unitaria, cantidad, ganancia_total, dia_year))
     
     conn.commit()
     conn.close()
 
 def get_weekly_sales_stats():
-    """Obtiene estadísticas de ventas de la semana actual"""
+    """Obtiene estadísticas de ventas del día actual (corregido para usar días)"""
     from datetime import datetime
+    import pytz
     
-    # Calcular semana actual
-    now = datetime.now()
-    year, week, _ = now.isocalendar()
-    semana_actual = f"{year}-{week:02d}"
+    # Usar zona horaria de Venezuela para calcular el día correcto
+    venezuela_tz = pytz.timezone('America/Caracas')
+    now_venezuela = datetime.now(venezuela_tz)
+    
+    # Calcular día actual (formato: YYYY-MM-DD) - resetea a las 12:00 AM
+    dia_actual = now_venezuela.strftime('%Y-%m-%d')
     
     conn = get_db_connection()
     
@@ -3185,7 +3360,7 @@ def get_weekly_sales_stats():
         WHERE semana_year = ?
         GROUP BY juego
         ORDER BY ganancia_total_juego DESC
-    ''', (semana_actual,)).fetchall()
+    ''', (dia_actual,)).fetchall()
     
     # Estadísticas por paquete
     stats_by_package = conn.execute('''
@@ -3194,7 +3369,7 @@ def get_weekly_sales_stats():
         FROM ventas_semanales 
         WHERE semana_year = ?
         ORDER BY ganancia_total DESC
-    ''', (semana_actual,)).fetchall()
+    ''', (dia_actual,)).fetchall()
     
     # Totales generales
     totals = conn.execute('''
@@ -3204,12 +3379,12 @@ def get_weekly_sales_stats():
                SUM(precio_compra * cantidad_vendida) as costos_totales
         FROM ventas_semanales 
         WHERE semana_year = ?
-    ''', (semana_actual,)).fetchone()
+    ''', (dia_actual,)).fetchone()
     
     conn.close()
     
     return {
-        'semana_actual': semana_actual,
+        'semana_actual': dia_actual,
         'stats_by_game': stats_by_game,
         'stats_by_package': stats_by_package,
         'totals': totals
@@ -3724,16 +3899,19 @@ def dashboard():
             ORDER BY bs.fecha DESC
         ''', (fecha_inicio, fecha_fin)).fetchall()
         
-        # Obtener los 2 usuarios con más compras en el período
+        # Obtener los 2 usuarios con más compras del mes actual (no del período seleccionado)
+        from datetime import datetime
+        current_month = datetime.now().strftime('%Y-%m')
+        
         top_users = conn.execute('''
             SELECT u.nombre, u.apellido, u.correo, COUNT(*) as total_compras, SUM(ABS(t.monto)) as monto_total
             FROM transacciones t
             JOIN usuarios u ON t.usuario_id = u.id
-            WHERE DATE(t.fecha) BETWEEN ? AND ?
+            WHERE strftime('%Y-%m', t.fecha) = ?
             GROUP BY u.id, u.nombre, u.apellido, u.correo
             ORDER BY total_compras DESC, monto_total DESC
             LIMIT 2
-        ''', (fecha_inicio, fecha_fin)).fetchall()
+        ''', (current_month,)).fetchall()
         
     else:
         # Usuario normal ve solo sus datos

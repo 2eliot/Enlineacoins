@@ -52,9 +52,37 @@
     <p>📰 Noticias - ID {{ user_id }}</p>
   </section>
 
+  <!-- Notificaciones Personalizadas (solo para usuarios normales) -->
+  {% if not is_admin and notificaciones_personalizadas %}
+  <section class="transactions">
+    <h2 class="transaction-title">🔔 Notificaciones Personales</h2>
+    <div class="news-container">
+      {% for notificacion in notificaciones_personalizadas %}
+      <div class="news-card personal-notification notification-{{ notificacion.tipo }}">
+        <div class="news-header">
+          <h3 class="news-title">{{ notificacion.titulo }}</h3>
+          <span class="news-date">{{ notificacion.fecha.split(' ')[0] }} {{ notificacion.fecha.split(' ')[1].split('.')[0] }}</span>
+        </div>
+        <div class="news-content">
+          <p>{{ notificacion.mensaje }}</p>
+        </div>
+        <div class="personal-notification-badge notification-badge-{{ notificacion.tipo }}">
+          <span>
+            {% if notificacion.tipo == 'success' %}✅ Aprobado
+            {% elif notificacion.tipo == 'error' %}❌ Error
+            {% elif notificacion.tipo == 'warning' %}⚠️ Advertencia
+            {% else %}ℹ️ Información{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- Noticias -->
   <section class="transactions">
-    <h2 class="transaction-title">Últimas Noticias</h2>
+    <h2 class="transaction-title">📰 Últimas Noticias</h2>
     <div class="news-container">
       {% if noticias %}
         {% for noticia in noticias %}
@@ -177,6 +205,63 @@
     .no-news {
       text-align: center;
       padding: 3rem 1rem;
+    }
+
+    /* Estilos para notificaciones personalizadas */
+    .personal-notification {
+      border-left: 4px solid #28a745;
+      background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+    }
+
+    .personal-notification.notification-success {
+      border-left-color: #28a745;
+      background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+    }
+
+    .personal-notification.notification-error {
+      border-left-color: #dc3545;
+      background: linear-gradient(135deg, #fff8f8 0%, #f5e8e8 100%);
+    }
+
+    .personal-notification.notification-warning {
+      border-left-color: #ffc107;
+      background: linear-gradient(135deg, #fffef8 0%, #f5f3e8 100%);
+    }
+
+    .personal-notification.notification-info {
+      border-left-color: #17a2b8;
+      background: linear-gradient(135deg, #f8fcff 0%, #e8f4f8 100%);
+    }
+
+    .personal-notification-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .notification-badge-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .notification-badge-error {
+      background: #dc3545;
+      color: white;
+    }
+
+    .notification-badge-warning {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .notification-badge-info {
+      background: #17a2b8;
+      color: white;
     }
 
     /* Responsive para noticias */

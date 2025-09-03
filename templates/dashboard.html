@@ -795,59 +795,10 @@
       margin-top: 0;
     }
 
-    /* Responsive - Minimizar en lugar de reorganizar */
+    /* Responsive - Paneles más pequeños para móviles */
     @media (max-width: 1024px) {
       .dashboard-container {
-        padding: 20px;
-      }
-      
-      .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-      }
-      
-      .stat-card {
-        padding: 20px;
-      }
-      
-      .stat-value {
-        font-size: 28px;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .dashboard-container {
         padding: 12px;
-      }
-      
-      .header {
-        padding: 8px 12px;
-      }
-      
-      .user-panel {
-        padding: 8px 12px;
-        font-size: 12px;
-      }
-      
-      .stats-section {
-        padding: 16px;
-      }
-      
-      .dashboard-title {
-        font-size: 22px;
-      }
-      
-      .dashboard-subtitle {
-        font-size: 14px;
-      }
-      
-      .filter-buttons-integrated {
-        gap: 8px;
-      }
-      
-      .filter-btn {
-        padding: 6px 12px;
-        font-size: 12px;
       }
       
       .stats-grid {
@@ -863,104 +814,833 @@
         font-size: 24px;
       }
       
+      .content-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 6px;
+      }
+      
+      .header {
+        padding: 4px 8px;
+      }
+      
+      .user-panel {
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+      
+      .stats-section {
+        padding: 8px;
+        margin-bottom: 12px;
+      }
+      
+      .dashboard-title {
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      
+      .dashboard-subtitle {
+        font-size: 10px;
+        margin-bottom: 12px;
+      }
+      
+      .filter-buttons-integrated {
+        gap: 4px;
+      }
+      
+      .filter-btn {
+        padding: 3px 6px;
+        font-size: 9px;
+        border-radius: 4px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 6px;
+      }
+      
+      .stat-card {
+        padding: 8px;
+      }
+      
+      .stat-value {
+        font-size: 18px;
+        margin-bottom: 2px;
+      }
+      
       .stat-title {
-        font-size: 12px;
+        font-size: 8px;
+        margin-bottom: 8px;
       }
       
       .stat-subtitle {
+        font-size: 8px;
+      }
+      
+      .stat-icon {
+        width: 24px;
+        height: 24px;
         font-size: 12px;
       }
       
       .icon-container {
-        gap: 8px;
+        gap: 4px;
       }
       
       .icon {
-        width: 20px;
-        height: 20px;
+        width: 16px;
+        height: 16px;
       }
       
       .top-users-section,
       .transactions-section {
-        padding: 16px;
+        padding: 8px;
+        margin-bottom: 12px;
       }
       
       .section-title {
-        font-size: 16px;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      
+      .transaction-item {
+        padding: 8px 0;
       }
       
       .transaction-package {
-        font-size: 12px;
-      }
-      
-      .transaction-details {
         font-size: 10px;
       }
       
+      .transaction-details {
+        font-size: 8px;
+      }
+      
       .transaction-amount {
-        font-size: 12px;
+        font-size: 10px;
+      }
+      
+      .user-item {
+        padding: 8px 0;
+      }
+      
+      .user-name {
+        font-size: 10px;
+      }
+      
+      .user-email {
+        font-size: 8px;
+      }
+      
+      .user-amount {
+        font-size: 10px;
+      }
+      
+      .user-count {
+        font-size: 8px;
+      }
+      
+      .user-avatar {
+        width: 24px;
+        height: 24px;
+        font-size: 8px;
+      }
+      
+      .transactions-summary {
+        padding: 6px 8px;
+        margin-bottom: 12px;
+      }
+      
+      .summary-item {
+        font-size: 10px;
+        gap: 4px;
       }
     }
 
     @media (max-width: 480px) {
       .dashboard-container {
-        padding: 8px;
+        padding: 4px;
       }
       
       .header {
-        padding: 6px 8px;
+        padding: 3px 6px;
       }
       
       .user-panel {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 3px 6px;
+        font-size: 9px;
       }
       
       .stats-section {
-        padding: 12px;
+        padding: 6px;
+        margin-bottom: 8px;
       }
       
       .dashboard-title {
-        font-size: 18px;
+        font-size: 14px;
+        margin-bottom: 2px;
       }
       
       .dashboard-subtitle {
-        font-size: 12px;
+        font-size: 9px;
+        margin-bottom: 8px;
       }
       
       .filter-btn {
-        padding: 4px 8px;
-        font-size: 11px;
+        padding: 2px 4px;
+        font-size: 8px;
+        border-radius: 3px;
       }
       
       .stats-grid {
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
+        gap: 4px;
       }
       
       .stat-card {
-        padding: 12px;
+        padding: 6px;
       }
       
       .stat-value {
-        font-size: 20px;
+        font-size: 14px;
+        margin-bottom: 1px;
       }
       
       .stat-title {
-        font-size: 10px;
+        font-size: 7px;
+        margin-bottom: 6px;
       }
       
       .stat-subtitle {
+        font-size: 7px;
+      }
+      
+      .stat-icon {
+        width: 20px;
+        height: 20px;
         font-size: 10px;
       }
       
       .icon-container {
-        gap: 6px;
+        gap: 3px;
       }
       
       .icon {
-        width: 18px;
-        height: 18px;
+        width: 14px;
+        height: 14px;
+      }
+      
+      .top-users-section,
+      .transactions-section {
+        padding: 6px;
+        margin-bottom: 8px;
+      }
+      
+      .section-title {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+      
+      .transaction-item {
+        padding: 6px 0;
+      }
+      
+      .transaction-package {
+        font-size: 9px;
+      }
+      
+      .transaction-details {
+        font-size: 7px;
+      }
+      
+      .transaction-amount {
+        font-size: 9px;
+      }
+      
+      .user-item {
+        padding: 6px 0;
+      }
+      
+      .user-name {
+        font-size: 9px;
+      }
+      
+      .user-email {
+        font-size: 7px;
+      }
+      
+      .user-amount {
+        font-size: 9px;
+      }
+      
+      .user-count {
+        font-size: 7px;
+      }
+      
+      .user-avatar {
+        width: 20px;
+        height: 20px;
+        font-size: 7px;
+      }
+      
+      .transactions-summary {
+        padding: 4px 6px;
+        margin-bottom: 8px;
+      }
+      
+      .summary-item {
+        font-size: 8px;
+        gap: 2px;
+      }
+      
+      .no-data {
+        padding: 20px 10px;
+      }
+      
+      .no-data-icon {
+        font-size: 24px;
+        margin-bottom: 8px;
+      }
+      
+      .no-data-title {
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      
+      .no-data-subtitle {
+        font-size: 10px;
+      }
+    }
+
+    /* Pantallas extra pequeñas */
+    @media (max-width: 360px) {
+      .dashboard-container {
+        padding: 2px;
+      }
+      
+      .header {
+        padding: 2px 4px;
+      }
+      
+      .user-panel {
+        padding: 2px 4px;
+        font-size: 8px;
+      }
+      
+      .stats-section {
+        padding: 4px;
+        margin-bottom: 6px;
+      }
+      
+      .dashboard-title {
+        font-size: 12px;
+        margin-bottom: 1px;
+      }
+      
+      .dashboard-subtitle {
+        font-size: 8px;
+        margin-bottom: 6px;
+      }
+      
+      .filter-btn {
+        padding: 1px 3px;
+        font-size: 7px;
+      }
+      
+      .stats-grid {
+        gap: 3px;
+      }
+      
+      .stat-card {
+        padding: 4px;
+      }
+      
+      .stat-value {
+        font-size: 12px;
+      }
+      
+      .stat-title {
+        font-size: 6px;
+        margin-bottom: 4px;
+      }
+      
+      .stat-subtitle {
+        font-size: 6px;
+      }
+      
+      .stat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 8px;
+      }
+      
+      .icon {
+        width: 12px;
+        height: 12px;
+      }
+      
+      .top-users-section,
+      .transactions-section {
+        padding: 4px;
+        margin-bottom: 6px;
+      }
+      
+      .section-title {
+        font-size: 9px;
+        margin-bottom: 4px;
+      }
+      
+      .transaction-item,
+      .user-item {
+        padding: 4px 0;
+      }
+      
+      .transaction-package,
+      .user-name,
+      .user-amount {
+        font-size: 8px;
+      }
+      
+      .transaction-details,
+      .transaction-amount,
+      .user-email,
+      .user-count {
+        font-size: 6px;
+      }
+      
+      .user-avatar {
+        width: 16px;
+        height: 16px;
+        font-size: 6px;
+      }
+      
+      .transactions-summary {
+        padding: 3px 4px;
+        margin-bottom: 6px;
+      }
+      
+      .summary-item {
+        font-size: 7px;
+        gap: 1px;
+      }
+    }
+    /* Responsive - Paneles más pequeños para móviles */
+    @media (max-width: 1024px) {
+      .dashboard-container {
+        padding: 12px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      
+      .stat-card {
+        padding: 16px;
+      }
+      
+      .stat-value {
+        font-size: 24px;
+      }
+      
+      .content-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 4px;
+      }
+      
+      .header {
+        padding: 3px 6px;
+      }
+      
+      .user-panel {
+        padding: 3px 6px;
+        font-size: 9px;
+      }
+      
+      .stats-section {
+        padding: 6px;
+        margin-bottom: 8px;
+      }
+      
+      .dashboard-title {
+        font-size: 14px;
+        margin-bottom: 2px;
+      }
+      
+      .dashboard-subtitle {
+        font-size: 9px;
+        margin-bottom: 8px;
+      }
+      
+      .filter-buttons-integrated {
+        gap: 3px;
+      }
+      
+      .filter-btn {
+        padding: 2px 4px;
+        font-size: 8px;
+        border-radius: 3px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 4px;
+      }
+      
+      .stat-card {
+        padding: 6px;
+      }
+      
+      .stat-value {
+        font-size: 16px;
+        margin-bottom: 1px;
+      }
+      
+      .stat-title {
+        font-size: 7px;
+        margin-bottom: 4px;
+      }
+      
+      .stat-subtitle {
+        font-size: 7px;
+      }
+      
+      .stat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+      }
+      
+      .icon-container {
+        gap: 3px;
+      }
+      
+      .icon {
+        width: 14px;
+        height: 14px;
+      }
+      
+      .top-users-section,
+      .transactions-section {
+        padding: 6px;
+        margin-bottom: 8px;
+      }
+      
+      .section-title {
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+      
+      .transaction-item {
+        padding: 6px 0;
+      }
+      
+      .transaction-package {
+        font-size: 9px;
+      }
+      
+      .transaction-details {
+        font-size: 7px;
+      }
+      
+      .transaction-amount {
+        font-size: 9px;
+      }
+      
+      .user-item {
+        padding: 6px 0;
+      }
+      
+      .user-name {
+        font-size: 9px;
+      }
+      
+      .user-email {
+        font-size: 7px;
+      }
+      
+      .user-amount {
+        font-size: 9px;
+      }
+      
+      .user-count {
+        font-size: 7px;
+      }
+      
+      .user-avatar {
+        width: 20px;
+        height: 20px;
+        font-size: 7px;
+      }
+      
+      .transactions-summary {
+        padding: 4px 6px;
+        margin-bottom: 8px;
+      }
+      
+      .summary-item {
+        font-size: 8px;
+        gap: 2px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-container {
+        padding: 2px;
+      }
+      
+      .header {
+        padding: 2px 4px;
+      }
+      
+      .user-panel {
+        padding: 2px 4px;
+        font-size: 8px;
+      }
+      
+      .stats-section {
+        padding: 4px;
+        margin-bottom: 6px;
+      }
+      
+      .dashboard-title {
+        font-size: 12px;
+        margin-bottom: 1px;
+      }
+      
+      .dashboard-subtitle {
+        font-size: 8px;
+        margin-bottom: 6px;
+      }
+      
+      .filter-btn {
+        padding: 1px 3px;
+        font-size: 7px;
+        border-radius: 2px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
+      }
+      
+      .stat-card {
+        padding: 4px;
+      }
+      
+      .stat-value {
+        font-size: 14px;
+        margin-bottom: 1px;
+      }
+      
+      .stat-title {
+        font-size: 6px;
+        margin-bottom: 3px;
+      }
+      
+      .stat-subtitle {
+        font-size: 6px;
+      }
+      
+      .stat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 8px;
+      }
+      
+      .icon-container {
+        gap: 2px;
+      }
+      
+      .icon {
+        width: 12px;
+        height: 12px;
+      }
+      
+      .top-users-section,
+      .transactions-section {
+        padding: 4px;
+        margin-bottom: 6px;
+      }
+      
+      .section-title {
+        font-size: 9px;
+        margin-bottom: 4px;
+      }
+      
+      .transaction-item,
+      .user-item {
+        padding: 4px 0;
+      }
+      
+      .transaction-package,
+      .user-name,
+      .user-amount {
+        font-size: 8px;
+      }
+      
+      .transaction-details,
+      .transaction-amount,
+      .user-email,
+      .user-count {
+        font-size: 6px;
+      }
+      
+      .user-avatar {
+        width: 16px;
+        height: 16px;
+        font-size: 6px;
+      }
+      
+      .transactions-summary {
+        padding: 2px 4px;
+        margin-bottom: 6px;
+      }
+      
+      .summary-item {
+        font-size: 7px;
+        gap: 1px;
+      }
+      
+      .no-data {
+        padding: 15px 5px;
+      }
+      
+      .no-data-icon {
+        font-size: 20px;
+        margin-bottom: 6px;
+      }
+      
+      .no-data-title {
+        font-size: 10px;
+        margin-bottom: 3px;
+      }
+      
+      .no-data-subtitle {
+        font-size: 8px;
+      }
+    }
+
+    /* Pantallas extra pequeñas */
+    @media (max-width: 360px) {
+      .dashboard-container {
+        padding: 1px;
+      }
+      
+      .header {
+        padding: 1px 3px;
+      }
+      
+      .user-panel {
+        padding: 1px 3px;
+        font-size: 7px;
+      }
+      
+      .stats-section {
+        padding: 3px;
+        margin-bottom: 4px;
+      }
+      
+      .dashboard-title {
+        font-size: 10px;
+        margin-bottom: 1px;
+      }
+      
+      .dashboard-subtitle {
+        font-size: 7px;
+        margin-bottom: 4px;
+      }
+      
+      .filter-btn {
+        padding: 1px 2px;
+        font-size: 6px;
+      }
+      
+      .stats-grid {
+        gap: 2px;
+      }
+      
+      .stat-card {
+        padding: 3px;
+      }
+      
+      .stat-value {
+        font-size: 12px;
+      }
+      
+      .stat-title {
+        font-size: 5px;
+        margin-bottom: 2px;
+      }
+      
+      .stat-subtitle {
+        font-size: 5px;
+      }
+      
+      .stat-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 7px;
+      }
+      
+      .icon {
+        width: 10px;
+        height: 10px;
+      }
+      
+      .top-users-section,
+      .transactions-section {
+        padding: 3px;
+        margin-bottom: 4px;
+      }
+      
+      .section-title {
+        font-size: 8px;
+        margin-bottom: 3px;
+      }
+      
+      .transaction-item,
+      .user-item {
+        padding: 3px 0;
+      }
+      
+      .transaction-package,
+      .user-name,
+      .user-amount {
+        font-size: 7px;
+      }
+      
+      .transaction-details,
+      .transaction-amount,
+      .user-email,
+      .user-count {
+        font-size: 5px;
+      }
+      
+      .user-avatar {
+        width: 14px;
+        height: 14px;
+        font-size: 5px;
+      }
+      
+      .transactions-summary {
+        padding: 2px 3px;
+        margin-bottom: 4px;
+      }
+      
+      .summary-item {
+        font-size: 6px;
+        gap: 1px;
       }
     }
   </style>
