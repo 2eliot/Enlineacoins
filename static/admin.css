@@ -761,6 +761,87 @@ body {
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
+/* Estilos para la sección de cambio de nombres */
+.name-selector-container {
+  background: #f0f8ff;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid #b3d9ff;
+}
+
+.names-info {
+  color: #0066cc;
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #e6f3ff;
+  border-radius: 6px;
+  border-left: 4px solid #0066cc;
+}
+
+.name-selector-form {
+  margin-bottom: 1.5rem;
+}
+
+.name-info-display {
+  background: #e8f5e8;
+  border: 1px solid #90ee90;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.current-name-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #228b22;
+  font-size: 1.1rem;
+}
+
+.current-name-info p {
+  margin: 0 0 1rem 0;
+  color: #424242;
+  font-size: 0.9rem;
+}
+
+.name-comparison {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.current-name-label {
+  font-weight: 600;
+  color: #424242;
+}
+
+.current-name-badge {
+  background: #228b22;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.btn-update-name {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-update-name:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
 .prices-overview {
   margin-top: 2rem;
 }

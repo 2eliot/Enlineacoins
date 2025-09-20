@@ -1595,6 +1595,21 @@ def update_package_price(package_id, new_price):
     finally:
         return_db_connection(conn)
 
+def update_package_name(package_id, new_name):
+    """Actualiza el nombre de un paquete"""
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_paquetes 
+            SET nombre = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_name, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar nombres
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
+
 def get_package_info_with_prices():
     """Obtiene información de paquetes con precios dinámicos"""
     conn = get_db_connection()
@@ -1771,6 +1786,21 @@ def update_bloodstriker_price(package_id, new_price):
         ''', (new_price, package_id))
         conn.commit()
         # Limpiar cache después de actualizar precios
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
+
+def update_bloodstriker_name(package_id, new_name):
+    """Actualiza el nombre de un paquete de Blood Striker"""
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_bloodstriker 
+            SET nombre = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_name, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar nombres
         clear_price_cache()
     finally:
         return_db_connection(conn)
@@ -2130,6 +2160,49 @@ def admin_update_price():
         flash('Precio inválido. Debe ser un número válido.', 'error')
     except Exception as e:
         flash(f'Error al actualizar precio: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/update_name', methods=['POST'])
+def admin_update_name():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    package_id = request.form.get('package_id')
+    new_name = request.form.get('new_name')
+    
+    if not package_id or not new_name:
+        flash('Datos inválidos para actualizar nombre', 'error')
+        return redirect('/admin')
+    
+    try:
+        new_name = new_name.strip()
+        if len(new_name) < 1:
+            flash('El nombre no puede estar vacío', 'error')
+            return redirect('/admin')
+        
+        if len(new_name) > 50:
+            flash('El nombre no puede exceder 50 caracteres', 'error')
+            return redirect('/admin')
+        
+        # Obtener información del paquete antes de actualizar
+        conn = get_db_connection()
+        package = conn.execute('SELECT nombre FROM precios_paquetes WHERE id = ?', (package_id,)).fetchone()
+        conn.close()
+        
+        if not package:
+            flash('Paquete no encontrado', 'error')
+            return redirect('/admin')
+        
+        old_name = package['nombre']
+        
+        # Actualizar nombre
+        update_package_name(int(package_id), new_name)
+        flash(f'Nombre actualizado exitosamente: "{old_name}" → "{new_name}"', 'success')
+        
+    except Exception as e:
+        flash(f'Error al actualizar nombre: {str(e)}', 'error')
     
     return redirect('/admin')
 
@@ -2642,6 +2715,49 @@ def admin_update_bloodstriker_price():
     
     return redirect('/admin')
 
+@app.route('/admin/update_bloodstriker_name', methods=['POST'])
+def admin_update_bloodstriker_name():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    package_id = request.form.get('package_id')
+    new_name = request.form.get('new_name')
+    
+    if not package_id or not new_name:
+        flash('Datos inválidos para actualizar nombre', 'error')
+        return redirect('/admin')
+    
+    try:
+        new_name = new_name.strip()
+        if len(new_name) < 1:
+            flash('El nombre no puede estar vacío', 'error')
+            return redirect('/admin')
+        
+        if len(new_name) > 50:
+            flash('El nombre no puede exceder 50 caracteres', 'error')
+            return redirect('/admin')
+        
+        # Obtener información del paquete antes de actualizar
+        conn = get_db_connection()
+        package = conn.execute('SELECT nombre FROM precios_bloodstriker WHERE id = ?', (package_id,)).fetchone()
+        conn.close()
+        
+        if not package:
+            flash('Paquete no encontrado', 'error')
+            return redirect('/admin')
+        
+        old_name = package['nombre']
+        
+        # Actualizar nombre
+        update_bloodstriker_name(int(package_id), new_name)
+        flash(f'Nombre de Blood Striker actualizado exitosamente: "{old_name}" → "{new_name}"', 'success')
+        
+    except Exception as e:
+        flash(f'Error al actualizar nombre: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
 @app.route('/admin/update_freefire_global_price', methods=['POST'])
 def admin_update_freefire_global_price():
     if not session.get('is_admin'):
@@ -2678,6 +2794,49 @@ def admin_update_freefire_global_price():
         flash('Precio inválido. Debe ser un número válido.', 'error')
     except Exception as e:
         flash(f'Error al actualizar precio: {str(e)}', 'error')
+    
+    return redirect('/admin')
+
+@app.route('/admin/update_freefire_global_name', methods=['POST'])
+def admin_update_freefire_global_name():
+    if not session.get('is_admin'):
+        flash('Acceso denegado. Solo administradores.', 'error')
+        return redirect('/auth')
+    
+    package_id = request.form.get('package_id')
+    new_name = request.form.get('new_name')
+    
+    if not package_id or not new_name:
+        flash('Datos inválidos para actualizar nombre', 'error')
+        return redirect('/admin')
+    
+    try:
+        new_name = new_name.strip()
+        if len(new_name) < 1:
+            flash('El nombre no puede estar vacío', 'error')
+            return redirect('/admin')
+        
+        if len(new_name) > 50:
+            flash('El nombre no puede exceder 50 caracteres', 'error')
+            return redirect('/admin')
+        
+        # Obtener información del paquete antes de actualizar
+        conn = get_db_connection()
+        package = conn.execute('SELECT nombre FROM precios_freefire_global WHERE id = ?', (package_id,)).fetchone()
+        conn.close()
+        
+        if not package:
+            flash('Paquete no encontrado', 'error')
+            return redirect('/admin')
+        
+        old_name = package['nombre']
+        
+        # Actualizar nombre
+        update_freefire_global_name(int(package_id), new_name)
+        flash(f'Nombre de Free Fire actualizado exitosamente: "{old_name}" → "{new_name}"', 'success')
+        
+    except Exception as e:
+        flash(f'Error al actualizar nombre: {str(e)}', 'error')
     
     return redirect('/admin')
 
@@ -3629,6 +3788,21 @@ def update_freefire_global_price(package_id, new_price):
         ''', (new_price, package_id))
         conn.commit()
         # Limpiar cache después de actualizar precios
+        clear_price_cache()
+    finally:
+        return_db_connection(conn)
+
+def update_freefire_global_name(package_id, new_name):
+    """Actualiza el nombre de un paquete de Free Fire Global"""
+    conn = get_db_connection_optimized()
+    try:
+        conn.execute('''
+            UPDATE precios_freefire_global 
+            SET nombre = ?, fecha_actualizacion = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_name, package_id))
+        conn.commit()
+        # Limpiar cache después de actualizar nombres
         clear_price_cache()
     finally:
         return_db_connection(conn)

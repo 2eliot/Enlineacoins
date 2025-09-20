@@ -281,7 +281,7 @@
         <section class="prices-section">
           <h2>💰 Gestión de Precios</h2>
           
-          <div class="prices-management">
+            <div class="prices-management">
             <div class="price-selector-container">
               <h3>Modificar Precios</h3>
               <p class="prices-info">Seleccione el juego y paquete para modificar su precio. Los cambios se aplicarán inmediatamente.</p>
@@ -337,6 +337,65 @@
                   <div class="price-comparison">
                     <span class="current-price-label">Precio actual:</span>
                     <span id="current-price-value" class="current-price-badge">$0.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Nueva sección para cambiar nombres de paquetes -->
+            <div class="name-selector-container">
+              <h3>Modificar Nombres de Paquetes</h3>
+              <p class="names-info">Seleccione el juego y paquete para modificar su nombre. Los cambios se aplicarán inmediatamente.</p>
+              
+              <form method="POST" action="/admin/update_name" class="name-selector-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="name_game_select">🎮 Juego:</label>
+                    <select id="name_game_select" onchange="updateNamePackages()">
+                      <option value="freefire">Free Fire Latam</option>
+                      <option value="freefire_global">Free Fire</option>
+                      <option value="bloodstriker">Blood Striker</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="name_package_select">📦 Paquete:</label>
+                    <select id="name_package_select" name="package_id" onchange="updateNameInfo()" required>
+                      <option value="">Seleccione un paquete</option>
+                      {% for price in prices %}
+                        <option value="{{ price.id }}" 
+                                data-current-name="{{ price.nombre }}" 
+                                data-description="{{ price.descripcion }}">
+                          {{ price.nombre }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="new_name_input">📝 Nuevo Nombre:</label>
+                    <input type="text" 
+                           id="new_name_input" 
+                           name="new_name" 
+                           maxlength="50" 
+                           placeholder="Ingrese el nuevo nombre" 
+                           required>
+                    <small class="form-help">Máximo 50 caracteres</small>
+                  </div>
+                  
+                  <div class="form-group">
+                    <button type="submit" class="btn btn-update-name">Actualizar Nombre</button>
+                  </div>
+                </div>
+              </form>
+              
+              <div id="name-info" class="name-info-display" style="display: none;">
+                <div class="current-name-info">
+                  <h4>Información del Paquete</h4>
+                  <p id="selected-name-package-description">-</p>
+                  <div class="name-comparison">
+                    <span class="current-name-label">Nombre actual:</span>
+                    <span id="current-name-value" class="current-name-badge">-</span>
                   </div>
                 </div>
               </div>
@@ -792,9 +851,83 @@
       }, 5000);
     }
 
+    // Funciones para gestión de nombres de paquetes
+    function updateNamePackages() {
+      const gameSelect = document.getElementById('name_game_select');
+      const packageSelect = document.getElementById('name_package_select');
+      const nameForm = packageSelect.closest('form');
+      
+      // Limpiar opciones
+      packageSelect.innerHTML = '<option value="">Seleccione un paquete</option>';
+      
+      if (gameSelect.value === 'freefire') {
+        nameForm.action = '/admin/update_name';
+        packageSelect.disabled = false;
+        freefireLatamPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-name', pkg.nombre);
+          option.setAttribute('data-description', 'Free Fire LATAM - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'freefire_global') {
+        nameForm.action = '/admin/update_freefire_global_name';
+        packageSelect.disabled = false;
+        freefireGlobalPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-name', pkg.nombre);
+          option.setAttribute('data-description', 'Free Fire - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
+      } else if (gameSelect.value === 'bloodstriker') {
+        nameForm.action = '/admin/update_bloodstriker_name';
+        packageSelect.disabled = false;
+        bloodstrikerPackages.forEach(pkg => {
+          const option = document.createElement('option');
+          option.value = pkg.id;
+          option.setAttribute('data-current-name', pkg.nombre);
+          option.setAttribute('data-description', 'Blood Striker - ' + pkg.nombre);
+          option.textContent = pkg.nombre;
+          packageSelect.appendChild(option);
+        });
+      } else {
+        packageSelect.disabled = true;
+        nameForm.action = '/admin/update_name';
+      }
+      
+      // Ocultar información de nombre
+      document.getElementById('name-info').style.display = 'none';
+      document.getElementById('new_name_input').value = '';
+    }
+
+    // Actualizar información de nombres
+    function updateNameInfo() {
+      const select = document.getElementById('name_package_select');
+      const selectedOption = select.options[select.selectedIndex];
+      const nameInfo = document.getElementById('name-info');
+      
+      if (selectedOption.value) {
+        const currentName = selectedOption.getAttribute('data-current-name');
+        const description = selectedOption.getAttribute('data-description');
+        
+        document.getElementById('selected-name-package-description').textContent = description;
+        document.getElementById('current-name-value').textContent = currentName;
+        document.getElementById('new_name_input').value = currentName;
+        
+        nameInfo.style.display = 'block';
+      } else {
+        nameInfo.style.display = 'none';
+        document.getElementById('new_name_input').value = '';
+      }
+    }
+
     // Inicializar
     document.addEventListener('DOMContentLoaded', function() {
       updatePackages();
+      updateNamePackages();
     });
   </script>
 </body>
